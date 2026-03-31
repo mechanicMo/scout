@@ -2,6 +2,11 @@ node_modules/
 dist/
 .next/
 .expo/
-*.env
-.env.local
+.env
+.env.*
+!.env.example
 .turbo/
+
+# Expo native build outputs
+apps/mobile/ios/
+apps/mobile/android/
