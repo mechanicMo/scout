@@ -3,6 +3,27 @@ import type { MediaItem, MediaType, WatchProviders } from './types'
 const TMDB_BASE = 'https://api.themoviedb.org/3'
 const POSTER_BASE = 'https://image.tmdb.org/t/p/w500'
 
+interface TMDBProvider {
+  provider_id: number
+  provider_name: string
+  logo_path: string
+}
+
+interface TMDBProviderRegion {
+  flatrate?: TMDBProvider[]
+  rent?: TMDBProvider[]
+  buy?: TMDBProvider[]
+  link?: string
+}
+
+function mapProvider(p: TMDBProvider) {
+  return {
+    providerId: p.provider_id,
+    providerName: p.provider_name,
+    logoPath: p.logo_path,
+  }
+}
+
 export function buildPosterUrl(posterPath: string | null): string | null {
   if (!posterPath) return null
   return `${POSTER_BASE}${posterPath}`
@@ -32,24 +53,15 @@ export async function fetchMedia(
 
   const rawProviders = data['watch/providers']?.results ?? {}
   const watchProviders: WatchProviders = {}
-  for (const [region, val] of Object.entries(rawProviders as Record<string, any>)) {
-    watchProviders[region] = {
-      flatrate: (val.flatrate ?? []).map((p: any) => ({
-        providerId: p.provider_id,
-        providerName: p.provider_name,
-        logoPath: p.logo_path,
-      })),
-      rent: (val.rent ?? []).map((p: any) => ({
-        providerId: p.provider_id,
-        providerName: p.provider_name,
-        logoPath: p.logo_path,
-      })),
-      buy: (val.buy ?? []).map((p: any) => ({
-        providerId: p.provider_id,
-        providerName: p.provider_name,
-        logoPath: p.logo_path,
-      })),
-    }
+  for (const [region, val] of Object.entries(rawProviders as Record<string, TMDBProviderRegion>)) {
+    const regionData: WatchProviders[string] = {}
+    const flatrate = (val.flatrate ?? []).map(mapProvider)
+    const rent = (val.rent ?? []).map(mapProvider)
+    const buy = (val.buy ?? []).map(mapProvider)
+    if (flatrate.length > 0) regionData.flatrate = flatrate
+    if (rent.length > 0) regionData.rent = rent
+    if (buy.length > 0) regionData.buy = buy
+    watchProviders[region] = regionData
   }
 
   return {

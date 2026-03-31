@@ -38,6 +38,7 @@ export interface WatchedItem {
   tmdbId: number
   mediaType: MediaType
   watchedAt: string
+  /** Rating score from 1 (worst) to 5 (best). Null if not yet rated. */
   overallScore: number | null
   tags: string[]
 }
