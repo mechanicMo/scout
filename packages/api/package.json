@@ -1,0 +1,29 @@
+{
+  "name": "@scout/api",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.11.0",
+    "@hono/trpc-server": "^0.3.0",
+    "@scout/db": "workspace:*",
+    "@scout/shared": "workspace:*",
+    "@trpc/server": "^11.0.0",
+    "dotenv": "^17.3.1",
+    "hono": "^4.3.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "drizzle-orm": "^0.30.0",
+    "tsx": "^4.11.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}
