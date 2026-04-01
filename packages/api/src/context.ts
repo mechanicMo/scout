@@ -1,21 +1,23 @@
 import type { Context as HonoContext } from 'hono'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export interface TRPCContext {
   userId: string | null
+  [key: string]: unknown
 }
 
 export async function createContext(c: HonoContext): Promise<TRPCContext> {
-  // Auth header: "Bearer <supabase-jwt>"
   const authHeader = c.req.header('Authorization')
   if (!authHeader?.startsWith('Bearer ')) return { userId: null }
 
-  // In Plan 2, we'll verify the JWT with Supabase. For now, trust the payload.
-  // DO NOT use this in production — proper JWT verification comes in Plan 2.
-  try {
-    const token = authHeader.slice(7)
-    const payload = JSON.parse(atob(token.split('.')[1]))
-    return { userId: payload.sub ?? null }
-  } catch {
-    return { userId: null }
-  }
+  const token = authHeader.slice(7)
+  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
+  if (error || !user) return { userId: null }
+
+  return { userId: user.id }
 }
