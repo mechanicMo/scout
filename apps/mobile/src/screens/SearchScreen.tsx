@@ -79,7 +79,8 @@ export function SearchScreen() {
           const key = `${item.tmdbId}-${item.mediaType}`
           const inWatchlist = watchlistedSet.has(key)
           const isAdding = addMutation.isPending &&
-            addMutation.variables?.tmdbId === item.tmdbId
+            addMutation.variables?.tmdbId === item.tmdbId &&
+            addMutation.variables?.mediaType === item.mediaType
 
           return (
             <View style={styles.card}>
