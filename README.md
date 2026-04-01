@@ -49,3 +49,11 @@ Scan the QR code with Expo Go.
 ```bash
 pnpm test
 ```
+
+---
+
+## Before Launch Checklist
+
+- [ ] **Email confirmation** — currently disabled in Supabase (Authentication → Providers → Email → "Confirm email"). Must be re-enabled and a transactional email provider (e.g. Resend) configured before going public.
+- [ ] **API deployment** — API runs locally only. Deploy to Railway or Fly.io and update `EXPO_PUBLIC_API_URL`.
+- [ ] **App Store / Play Store** — Expo Go is for development only. Need a production build (`eas build`) for distribution.
