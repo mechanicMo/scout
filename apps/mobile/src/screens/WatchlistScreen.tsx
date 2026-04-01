@@ -42,11 +42,11 @@ export function WatchlistScreen() {
 
       {activeTab === 'upcoming' ? (
         <>
-          {listQuery.isLoading && (
+          {(listQuery.isLoading || listQuery.isFetching) && (
             <ActivityIndicator color="#e8a020" style={styles.spinner} />
           )}
 
-          {!listQuery.isLoading && listQuery.data?.length === 0 && (
+          {!listQuery.isLoading && !listQuery.isFetching && listQuery.data?.length === 0 && (
             <Text style={styles.emptyText}>
               Nothing saved yet.{'\n'}Search for something to watch.
             </Text>
@@ -79,7 +79,7 @@ export function WatchlistScreen() {
                 <TouchableOpacity
                   style={styles.removeButton}
                   onPress={() => removeMutation.mutate({ id: item.id })}
-                  disabled={removeMutation.isPending}
+                  disabled={removeMutation.isPending && removeMutation.variables?.id === item.id}
                 >
                   <Text style={styles.removeButtonText}>✕</Text>
                 </TouchableOpacity>
