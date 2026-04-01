@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native'
 import { supabase } from '../lib/supabase'
 import { ScreenContainer } from '../components/ScreenContainer'
 
@@ -8,6 +8,7 @@ export function SignUpScreen({ onNavigateLogin }: { onNavigateLogin: () => void 
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [loading, setLoading] = useState(false)
+  const [confirmed, setConfirmed] = useState(false)
 
   async function handleSignUp() {
     setLoading(true)
@@ -18,7 +19,25 @@ export function SignUpScreen({ onNavigateLogin }: { onNavigateLogin: () => void 
     })
     setLoading(false)
     if (error) Alert.alert('Sign up failed', error.message)
-    else Alert.alert('Check your email', 'Confirm your address to get started.')
+    else setConfirmed(true)
+  }
+
+  if (confirmed) {
+    return (
+      <ScreenContainer centered>
+        <View style={styles.confirmBox}>
+          <Text style={styles.confirmIcon}>✉️</Text>
+          <Text style={styles.confirmTitle}>Check your email</Text>
+          <Text style={styles.confirmBody}>
+            We sent a confirmation link to{'\n'}
+            <Text style={styles.confirmEmail}>{email}</Text>
+          </Text>
+          <TouchableOpacity style={styles.button} onPress={onNavigateLogin}>
+            <Text style={styles.buttonText}>Back to sign in</Text>
+          </TouchableOpacity>
+        </View>
+      </ScreenContainer>
+    )
   }
 
   return (
@@ -72,4 +91,9 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: '#100a04', fontWeight: '800', fontSize: 16 },
   link: { color: '#7a5535', textAlign: 'center', marginTop: 20, fontSize: 14 },
+  confirmBox: { alignItems: 'center' },
+  confirmIcon: { fontSize: 48, marginBottom: 16 },
+  confirmTitle: { fontSize: 24, fontWeight: '800', color: '#fff1e6', marginBottom: 12 },
+  confirmBody: { color: '#7a5535', fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 32 },
+  confirmEmail: { color: '#e8a020', fontWeight: '600' },
 })

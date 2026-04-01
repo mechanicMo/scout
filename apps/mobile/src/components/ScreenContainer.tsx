@@ -18,6 +18,7 @@ export function ScreenContainer({ children, centered = false }: ScreenContainerP
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
+        style={styles.flex}
         contentContainerStyle={[styles.scroll, centered && styles.centered]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
