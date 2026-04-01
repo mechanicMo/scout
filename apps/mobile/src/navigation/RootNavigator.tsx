@@ -48,7 +48,7 @@ function AppContent() {
   }, [])
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={{ dark: true, colors: { background: '#100a04', primary: '#e8a020', card: '#1f1208', text: '#fff1e6', border: '#2e1a0a', notification: '#e8a020' } }}>
       {session ? (
         <TabNavigator />
       ) : authScreen === 'login' ? (
