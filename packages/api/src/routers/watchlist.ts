@@ -19,9 +19,10 @@ export const watchlistRouter = router({
       status: z.enum(['saved', 'dismissed_not_now', 'dismissed_never']).optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const condition = input.status
-        ? and(eq(watchlist.userId, ctx.userId), eq(watchlist.status, input.status))
-        : eq(watchlist.userId, ctx.userId)
+      const condition = and(
+        eq(watchlist.userId, ctx.userId),
+        input.status ? eq(watchlist.status, input.status) : undefined
+      )
 
       return db
         .select({
@@ -86,44 +87,27 @@ export const watchlistRouter = router({
           })
       }
 
-      // Check if already in watchlist
-      const [existing] = await db
-        .select({ id: watchlist.id, status: watchlist.status })
-        .from(watchlist)
-        .where(
-          and(
-            eq(watchlist.userId, ctx.userId),
-            eq(watchlist.tmdbId, input.tmdbId),
-            eq(watchlist.mediaType, input.mediaType)
-          )
-        )
-        .limit(1)
-
-      if (existing) {
-        if (existing.status !== 'saved') {
-          await db
-            .update(watchlist)
-            .set({ status: 'saved', resurfaceAfter: null })
-            .where(eq(watchlist.id, existing.id))
-        }
-        return { id: existing.id }
-      }
-
       const [row] = await db
         .insert(watchlist)
         .values({
           userId: ctx.userId,
           tmdbId: input.tmdbId,
           mediaType: input.mediaType,
+          status: 'saved',
+        })
+        .onConflictDoUpdate({
+          target: [watchlist.userId, watchlist.tmdbId, watchlist.mediaType],
+          set: { status: 'saved', resurfaceAfter: null },
         })
         .returning()
 
+      if (!row) throw new Error('Failed to insert watchlist item')
       return { id: row.id }
     }),
 
   updateStatus: protectedProcedure
     .input(z.object({
-      id: z.string(),
+      id: z.string().uuid(),
       status: z.enum(['saved', 'dismissed_not_now', 'dismissed_never']),
       resurfaceAfter: z.string().optional(),
     }))
@@ -144,7 +128,7 @@ export const watchlistRouter = router({
     }),
 
   remove: protectedProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await db
         .delete(watchlist)

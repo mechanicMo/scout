@@ -9,7 +9,7 @@ const mockDb = vi.hoisted(() => ({
   limit: vi.fn().mockResolvedValue([]),
   insert: vi.fn().mockReturnThis(),
   values: vi.fn().mockReturnThis(),
-  onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+  onConflictDoUpdate: vi.fn().mockReturnThis(),
   returning: vi.fn().mockResolvedValue([{ id: 'new-uuid' }]),
   update: vi.fn().mockReturnThis(),
   set: vi.fn().mockReturnThis(),
@@ -37,7 +37,7 @@ const caller = createCaller({ userId: 'user-123' })
 describe('watchlist.list', () => {
   it('returns watchlist items joined with media cache', async () => {
     const mockItems = [{
-      id: 'wl-1', tmdbId: 550, mediaType: 'movie', status: 'saved',
+      id: '11111111-1111-1111-1111-111111111111', tmdbId: 550, mediaType: 'movie', status: 'saved',
       resurfaceAfter: null, addedAt: new Date(),
       title: 'Fight Club', posterPath: '/poster.jpg', year: 1999,
       genres: ['Drama'], overview: 'An insomniac...',
@@ -86,7 +86,7 @@ describe('watchlist.add', () => {
 
 describe('watchlist.updateStatus', () => {
   it('updates status on watchlist item', async () => {
-    await caller.updateStatus({ id: 'wl-1', status: 'dismissed_never' })
+    await caller.updateStatus({ id: '11111111-1111-1111-1111-111111111111', status: 'dismissed_never' })
     expect(mockDb.update).toHaveBeenCalled()
     expect(mockDb.set).toHaveBeenCalled()
   })
@@ -94,7 +94,7 @@ describe('watchlist.updateStatus', () => {
 
 describe('watchlist.remove', () => {
   it('deletes watchlist item by id', async () => {
-    await caller.remove({ id: 'wl-1' })
+    await caller.remove({ id: '11111111-1111-1111-1111-111111111111' })
     expect(mockDb.delete).toHaveBeenCalled()
   })
 })

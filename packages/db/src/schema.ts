@@ -1,13 +1,5 @@
 import {
-  pgSchema,
-  pgEnum,
-  uuid,
-  text,
-  timestamp,
-  integer,
-  jsonb,
-  date,
-  primaryKey,
+  pgSchema, pgEnum, uuid, text, timestamp, integer, jsonb, date, primaryKey, unique,
 } from 'drizzle-orm/pg-core'
 
 const scout = pgSchema('scout')
@@ -57,15 +49,15 @@ export const watchHistory = scout.table('watch_history', {
 
 export const watchlist = scout.table('watchlist', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   tmdbId: integer('tmdb_id').notNull(),
   mediaType: mediaTypeEnum('media_type').notNull(),
   status: watchlistStatusEnum('status').default('saved').notNull(),
   resurfaceAfter: date('resurface_after'),
   addedAt: timestamp('added_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  userMediaUnique: unique('watchlist_user_media_unique').on(table.userId, table.tmdbId, table.mediaType),
+}))
 
 export const surveyAnswers = scout.table('survey_answers', {
   id: uuid('id').primaryKey().defaultRandom(),
