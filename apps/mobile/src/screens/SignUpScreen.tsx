@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native'
+import { Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native'
 import { supabase } from '../lib/supabase'
+import { ScreenContainer } from '../components/ScreenContainer'
 
 export function SignUpScreen({ onNavigateLogin }: { onNavigateLogin: () => void }) {
   const [email, setEmail] = useState('')
@@ -21,7 +22,7 @@ export function SignUpScreen({ onNavigateLogin }: { onNavigateLogin: () => void 
   }
 
   return (
-    <View style={styles.container}>
+    <ScreenContainer centered>
       <Text style={styles.logo}>scout</Text>
       <Text style={styles.tagline}>create your account</Text>
       <TextInput
@@ -54,12 +55,11 @@ export function SignUpScreen({ onNavigateLogin }: { onNavigateLogin: () => void 
       <TouchableOpacity onPress={onNavigateLogin}>
         <Text style={styles.link}>Already have an account? Sign in</Text>
       </TouchableOpacity>
-    </View>
+    </ScreenContainer>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#100a04', padding: 32, justifyContent: 'center' },
   logo: { fontSize: 48, fontWeight: '800', color: '#fff1e6', letterSpacing: -2, marginBottom: 4 },
   tagline: { fontSize: 14, color: '#7a5535', marginBottom: 40 },
   input: {
