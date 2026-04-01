@@ -54,6 +54,6 @@ pnpm test
 
 ## Before Launch Checklist
 
-- [ ] **Email confirmation** — currently disabled in Supabase (Authentication → Providers → Email → "Confirm email"). Must be re-enabled and a transactional email provider (e.g. Resend) configured before going public.
+- [ ] **Email confirmation** — Supabase's built-in mailer is unreliable (rate-limited, lands in spam). Configure a transactional email provider (e.g. Resend) in Supabase dashboard → Settings → Auth → SMTP before going public. For dev: manually confirm test accounts via dashboard → Authentication → Users.
 - [ ] **API deployment** — API runs locally only. Deploy to Railway or Fly.io and update `EXPO_PUBLIC_API_URL`.
 - [ ] **App Store / Play Store** — Expo Go is for development only. Need a production build (`eas build`) for distribution.
