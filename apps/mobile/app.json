@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Scout",
+    "slug": "scout",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": { "backgroundColor": "#100a04" },
+    "ios": { "supportsTablet": false },
+    "android": { "adaptiveIcon": { "backgroundColor": "#100a04" } }
+  }
+}
