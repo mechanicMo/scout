@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { NavigationContainer } from '@react-navigation/native'
+import { NavigationContainer, DarkTheme } from '@react-navigation/native'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { TabNavigator } from './TabNavigator'
 import { LoginScreen } from '../screens/LoginScreen'
@@ -48,7 +48,7 @@ function AppContent() {
   }, [])
 
   return (
-    <NavigationContainer theme={{ dark: true, colors: { background: '#100a04', primary: '#e8a020', card: '#1f1208', text: '#fff1e6', border: '#2e1a0a', notification: '#e8a020' } }}>
+    <NavigationContainer theme={{ ...DarkTheme, colors: { ...DarkTheme.colors, background: '#100a04', card: '#1f1208', primary: '#e8a020', text: '#fff1e6', border: '#2e1a0a', notification: '#e8a020' } }}>
       {session ? (
         <TabNavigator />
       ) : authScreen === 'login' ? (
