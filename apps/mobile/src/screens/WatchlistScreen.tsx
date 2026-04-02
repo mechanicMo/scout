@@ -37,17 +37,8 @@ export function WatchlistScreen() {
   const updateStatusMutation = trpc.watchlist.updateStatus.useMutation({
     onSuccess: () => listQuery.refetch(),
   })
-  const addHistoryMutation = trpc.watchHistory.add.useMutation({
-    onSuccess: () => {
-      // Remove from watchlist only after successful history insert
-      if (ratingTarget) {
-        removeMutation.mutate({ id: ratingTarget.id })
-      }
-      setRatingTarget(null)
-      historyQuery.refetch()
-      listQuery.refetch()
-    },
-  })
+  const addHistoryMutation = trpc.watchHistory.add.useMutation()
+  const tasteProfileMutation = trpc.tasteProfile.updateFromRating.useMutation()
 
   function handleDismissNotNow() {
     if (!dismissTarget) return
@@ -75,12 +66,20 @@ export function WatchlistScreen() {
 
   function handleRatingSubmit(score: number, tags: string[]) {
     if (!ratingTarget) return
-    addHistoryMutation.mutate({
-      tmdbId: ratingTarget.tmdbId,
-      mediaType: ratingTarget.mediaType,
-      score,
-      tags,
-    })
+    addHistoryMutation.mutate(
+      { tmdbId: ratingTarget.tmdbId, mediaType: ratingTarget.mediaType, score, tags },
+      {
+        onSuccess: () => {
+          if (ratingTarget.genres && ratingTarget.genres.length > 0) {
+            tasteProfileMutation.mutate({ score, genres: ratingTarget.genres })
+          }
+          removeMutation.mutate({ id: ratingTarget.id })
+          setRatingTarget(null)
+          historyQuery.refetch()
+          listQuery.refetch()
+        },
+      }
+    )
   }
 
   return (
