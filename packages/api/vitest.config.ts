@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     env: {
       TMDB_READ_ACCESS_TOKEN: 'test-token',
+      GROQ_API_KEY: 'test-groq-key',
     },
   },
 })

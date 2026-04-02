@@ -59,4 +59,10 @@ export interface AIProvider {
     profile: TasteProfile,
     interaction: Interaction
   ): Promise<TasteProfile>
+
+  /**
+   * Generate 6–8 descriptive tag phrases for a title (themes, tone, qualities).
+   * Falls back to genres if AI call fails.
+   */
+  generateTags(media: MediaItem, profile: TasteProfile): Promise<string[]>
 }

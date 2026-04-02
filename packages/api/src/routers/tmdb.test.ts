@@ -3,6 +3,12 @@ import { createCallerFactory } from '../trpc'
 import { tmdbRouter } from './tmdb'
 import { fetchMedia, searchTMDB } from '@scout/shared'
 
+vi.mock('@scout/ai', () => ({
+  GroqProvider: vi.fn().mockImplementation(() => ({
+    generateTags: vi.fn().mockResolvedValue(['slow burn', 'strong performances', 'dark themes']),
+  })),
+}))
+
 vi.mock('@scout/shared', () => ({
   fetchMedia: vi.fn(),
   searchTMDB: vi.fn(),
@@ -19,6 +25,7 @@ vi.mock('@scout/db', () => ({
     onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
   },
   mediaCache: { tmdbId: 'tmdb_id', mediaType: 'media_type' },
+  tasteProfiles: { userId: 'user_id' },
 }))
 
 const createCaller = createCallerFactory(tmdbRouter)
@@ -74,5 +81,74 @@ describe('tmdb.getMedia', () => {
     const result = await caller.getMedia({ tmdbId: 550, mediaType: 'movie' })
     expect(result.title).toBe('Fight Club')
     expect(fetchMedia).not.toHaveBeenCalled()
+  })
+})
+
+describe('tmdb.generateTags', () => {
+  it('returns AI-generated tags when media is cached', async () => {
+    const cachedItem = {
+      tmdbId: 550,
+      mediaType: 'movie' as const,
+      title: 'Fight Club',
+      posterPath: null,
+      backdropPath: null,
+      year: 1999,
+      genres: ['Drama', 'Thriller'],
+      tagline: null,
+      overview: 'A man joins a fight club.',
+      runtime: 139,
+      voteAverage: 8.8,
+      director: 'David Fincher',
+      createdBy: [],
+      cast: [],
+      contentRating: 'R',
+      numberOfSeasons: null,
+      numberOfEpisodes: null,
+      statusText: null,
+      network: null,
+      watchProviders: {},
+      lastSynced: new Date(),
+    }
+    const { db } = await import('@scout/db')
+    // First select: cache hit. Second select: no taste profile.
+    vi.mocked(db.select)
+      .mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([cachedItem]),
+          }),
+        }),
+      } as any)
+      .mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+      } as any)
+
+    const authedCaller = createCaller({ userId: 'user-1' })
+    const result = await authedCaller.generateTags({ tmdbId: 550, mediaType: 'movie' })
+    expect(result).toEqual(['slow burn', 'strong performances', 'dark themes'])
+  })
+
+  it('returns empty array when media is not cached', async () => {
+    const { db } = await import('@scout/db')
+    vi.mocked(db.select).mockReturnValueOnce({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([]),
+        }),
+      }),
+    } as any)
+
+    const authedCaller = createCaller({ userId: 'user-1' })
+    const result = await authedCaller.generateTags({ tmdbId: 999, mediaType: 'movie' })
+    expect(result).toEqual([])
+  })
+
+  it('throws when unauthenticated', async () => {
+    const anonCaller = createCaller({ userId: null })
+    await expect(anonCaller.generateTags({ tmdbId: 550, mediaType: 'movie' })).rejects.toThrow()
   })
 })

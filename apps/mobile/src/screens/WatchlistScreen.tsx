@@ -39,6 +39,10 @@ export function WatchlistScreen() {
   })
   const addHistoryMutation = trpc.watchHistory.add.useMutation()
   const tasteProfileMutation = trpc.tasteProfile.updateFromRating.useMutation()
+  const tagsQuery = trpc.tmdb.generateTags.useQuery(
+    { tmdbId: ratingTarget?.tmdbId ?? 0, mediaType: ratingTarget?.mediaType ?? 'movie' },
+    { enabled: !!ratingTarget }
+  )
 
   function handleDismissNotNow() {
     if (!dismissTarget) return
@@ -237,7 +241,7 @@ export function WatchlistScreen() {
       <RatingModal
         visible={!!ratingTarget}
         title={ratingTarget?.title ?? ''}
-        tags={ratingTarget?.genres ?? []}
+        tags={tagsQuery.data ?? ratingTarget?.genres ?? []}
         onClose={() => setRatingTarget(null)}
         onSubmit={handleRatingSubmit}
         isPending={addHistoryMutation.isPending}

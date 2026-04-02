@@ -55,6 +55,10 @@ export function PicksScreen() {
   const updateStatusMutation = trpc.watchlist.updateStatus.useMutation({ onSuccess: () => watchlistQuery.refetch() })
   const addHistoryMutation = trpc.watchHistory.add.useMutation()
   const tasteProfileMutation = trpc.tasteProfile.updateFromRating.useMutation()
+  const tagsQuery = trpc.tmdb.generateTags.useQuery(
+    { tmdbId: ratingTarget?.tmdbId ?? 0, mediaType: ratingTarget?.mediaType ?? 'movie' },
+    { enabled: !!ratingTarget }
+  )
   const refineMutation = trpc.picks.refine.useMutation({
     onSuccess: (data) => {
       utils.picks.aiRecs.setData(undefined, data)
@@ -218,7 +222,7 @@ export function PicksScreen() {
         onAlreadyWatched={handleDismissAlreadyWatched} onNotInterested={handleDismissNotInterested}
       />
       <RatingModal
-        visible={!!ratingTarget} title={ratingTarget?.title ?? ''} tags={ratingTarget?.genres ?? []}
+        visible={!!ratingTarget} title={ratingTarget?.title ?? ''} tags={tagsQuery.data ?? ratingTarget?.genres ?? []}
         onClose={() => setRatingTarget(null)} onSubmit={handleRatingSubmit} isPending={addHistoryMutation.isPending}
       />
     </SafeAreaView>

@@ -1,5 +1,5 @@
 import type { AIProvider, Interaction } from '../types'
-import type { TasteProfile, WatchedItem, Recommendation, SurveyQuestion, SurveyAnswer } from '@scout/shared'
+import type { TasteProfile, WatchedItem, Recommendation, SurveyQuestion, SurveyAnswer, MediaItem } from '@scout/shared'
 
 const GROQ_BASE = 'https://api.groq.com/openai/v1/chat/completions'
 const MODEL = 'llama-3.3-70b-versatile'
@@ -172,5 +172,31 @@ JSON only: {"question": "...", "options": ["...", "...", "...", "..."]}`,
   // AI-maintained notes is a paid-tier feature — not in v1.
   async updateTasteProfile(profile: TasteProfile, _interaction: Interaction): Promise<TasteProfile> {
     return profile
+  }
+
+  async generateTags(media: MediaItem, profile: TasteProfile): Promise<string[]> {
+    const tasteLine = [
+      ...(profile.likedThemes.length > 0 ? profile.likedThemes : profile.likedGenres),
+    ].slice(0, 4).join(', ')
+
+    const content = await this.chat([
+      {
+        role: 'system',
+        content: 'You are Scout. Generate 6-8 short tag phrases (2-4 words each) for this title. Focus on themes, tone, mood, and memorable qualities — not just genres. Respond ONLY with a JSON array of strings.',
+      },
+      {
+        role: 'user',
+        content: `Title: ${media.title}
+Genres: ${media.genres.join(', ')}
+Overview: ${media.overview.slice(0, 300)}
+User likes: ${tasteLine || 'unknown'}
+
+JSON array only: ["tag1", "tag2", ...]`,
+      },
+    ], 200)
+
+    const parsed = this.parseJSON<string[]>(content)
+    if (!Array.isArray(parsed)) return media.genres.slice(0, 6)
+    return parsed.filter((t): t is string => typeof t === 'string').slice(0, 8)
   }
 }
