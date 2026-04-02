@@ -1,8 +1,9 @@
 import React from 'react'
 import {
   View, Text, Image, ScrollView, TouchableOpacity,
-  ActivityIndicator, StyleSheet, SafeAreaView,
+  ActivityIndicator, StyleSheet,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigation/MainNavigator'
 import { trpc } from '../lib/trpc'
@@ -138,8 +139,8 @@ export function MediaDetailScreen({ route, navigation }: Props) {
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Where to Watch</Text>
             <View style={styles.providerRow}>
-              {providers.slice(0, 6).map((p) => (
-                <View key={p.provider_name} style={styles.providerItem}>
+              {providers.slice(0, 6).map((p, i) => (
+                <View key={`${p.provider_name ?? i}-${i}`} style={styles.providerItem}>
                   <Image
                     source={{ uri: `${LOGO_BASE}${p.logo_path}` }}
                     style={styles.providerLogo}
