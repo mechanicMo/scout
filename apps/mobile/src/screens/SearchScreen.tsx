@@ -35,7 +35,9 @@ export function SearchScreen() {
   })
 
   const watchlistedSet = new Set(
-    watchlistQuery.data?.map(item => `${item.tmdbId}-${item.mediaType}`) ?? []
+    watchlistQuery.data
+      ?.filter(item => item.status === 'saved')
+      .map(item => `${item.tmdbId}-${item.mediaType}`) ?? []
   )
 
   function handleAdd(item: MediaItem) {

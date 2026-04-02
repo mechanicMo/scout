@@ -39,6 +39,11 @@ export function WatchlistScreen() {
   })
   const addHistoryMutation = trpc.watchHistory.add.useMutation({
     onSuccess: () => {
+      // Remove from watchlist only after successful history insert
+      if (ratingTarget) {
+        removeMutation.mutate({ id: ratingTarget.id })
+      }
+      setRatingTarget(null)
       historyQuery.refetch()
       listQuery.refetch()
     },
@@ -76,8 +81,6 @@ export function WatchlistScreen() {
       score,
       tags,
     })
-    removeMutation.mutate({ id: ratingTarget.id })
-    setRatingTarget(null)
   }
 
   return (
