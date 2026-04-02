@@ -34,6 +34,9 @@ vi.mock('@scout/db', () => ({
   recommendations: {},
   tasteProfiles: {},
   watchHistory: {},
+  usageLogs: { userId: 'user_id', action: 'action', createdAt: 'created_at' },
+  users: { id: 'id', tier: 'tier' },
+  watchlist: { userId: 'user_id', tmdbId: 'tmdb_id', mediaType: 'media_type', status: 'status', resurfaceAfter: 'resurface_after' },
 }))
 
 vi.mock('@scout/ai', () => ({
@@ -72,13 +75,25 @@ const MOCK_ITEMS = [
 ]
 
 describe('picks.trending', () => {
-  beforeEach(() => { vi.mocked(fetchTrending).mockResolvedValue(MOCK_ITEMS) })
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetMockDbChain()
+    vi.mocked(fetchTrending).mockResolvedValue(MOCK_ITEMS)
+    mockDb.where.mockResolvedValue([]) // no dismissed items
+  })
 
   it('returns trending items', async () => {
     const caller = createCaller({ userId: 'user-1' })
     const result = await caller.trending()
     expect(result).toHaveLength(1)
     expect(result[0].title).toBe('Fight Club')
+  })
+
+  it('filters out dismissed items', async () => {
+    mockDb.where.mockResolvedValue([{ tmdbId: 550, mediaType: 'movie' }])
+    const caller = createCaller({ userId: 'user-1' })
+    const result = await caller.trending()
+    expect(result).toHaveLength(0)
   })
 
   it('throws when unauthenticated', async () => {
@@ -98,6 +113,7 @@ describe('picks.aiRecs', () => {
   it('returns empty array when profile is sparse', async () => {
     mockDb.limit
       .mockResolvedValueOnce([]) // fresh recs
+      .mockResolvedValueOnce([{ tier: 'paid' }]) // user tier (paid skips count check)
       .mockResolvedValueOnce([]) // taste profile (sparse → isSparse = true)
     const caller = createCaller({ userId: 'user-1' })
     const result = await caller.aiRecs()
@@ -107,6 +123,7 @@ describe('picks.aiRecs', () => {
   it('returns enriched media items when profile has data', async () => {
     mockDb.limit
       .mockResolvedValueOnce([]) // fresh recs
+      .mockResolvedValueOnce([{ tier: 'paid' }]) // user tier (paid skips count check)
       .mockResolvedValueOnce([{  // taste profile with data
         id: 'tp-1', userId: 'user-1',
         likedGenres: ['Drama'], dislikedGenres: [], likedThemes: [],
@@ -135,6 +152,7 @@ describe('picks.refine', () => {
 
   it('returns refined media items', async () => {
     mockDb.limit
+      .mockResolvedValueOnce([{ tier: 'paid' }]) // user tier (paid skips count check)
       .mockResolvedValueOnce([]) // current recs
       .mockResolvedValueOnce([{  // taste profile
         id: 'tp-1', userId: 'user-1',
@@ -151,5 +169,66 @@ describe('picks.refine', () => {
   it('throws when unauthenticated', async () => {
     const caller = createCaller({ userId: null })
     await expect(caller.refine({ message: 'test' })).rejects.toThrow()
+  })
+})
+
+describe('picks.aiRecs rate limiting', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetMockDbChain()
+    mockDb.limit.mockResolvedValue([])
+    mockDb.orderBy.mockReturnValue(mockDb)
+  })
+
+  it('allows paid users regardless of usage count', async () => {
+    mockDb.limit
+      .mockResolvedValueOnce([]) // no fresh recs
+      .mockResolvedValueOnce([{ tier: 'paid' }]) // user tier — paid, skip count check
+      .mockResolvedValueOnce([{
+        id: 'tp-1', userId: 'user-1', likedGenres: ['Drama'], dislikedGenres: [],
+        likedThemes: [], favoriteActors: [], services: [], notes: '',
+        lastUpdated: new Date(),
+      }]) // taste profile with data
+      .mockResolvedValueOnce([]) // watch history (via orderBy→limit chain)
+    const caller = createCaller({ userId: 'user-1' })
+    await expect(caller.aiRecs()).resolves.toBeDefined()
+  })
+
+  it('blocks free user who has already generated recs today', async () => {
+    mockDb.limit
+      .mockResolvedValueOnce([]) // no fresh recs
+      .mockResolvedValueOnce([{ tier: 'free' }]) // user tier
+      .mockResolvedValueOnce([{ count: 1 }]) // already used today
+    const caller = createCaller({ userId: 'user-1' })
+    await expect(caller.aiRecs()).rejects.toThrow()
+  })
+})
+
+describe('picks.refine rate limiting', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetMockDbChain()
+    mockDb.limit.mockResolvedValue([])
+  })
+
+  it('blocks free user after 3 refinements today', async () => {
+    mockDb.limit
+      .mockResolvedValueOnce([{ tier: 'free' }]) // user tier
+      .mockResolvedValueOnce([{ count: 3 }]) // usage count at limit
+    const caller = createCaller({ userId: 'user-1' })
+    await expect(caller.refine({ message: 'something dark' })).rejects.toThrow()
+  })
+
+  it('allows paid user regardless of refinement count', async () => {
+    mockDb.limit
+      .mockResolvedValueOnce([{ tier: 'paid' }]) // user tier — paid skips count check
+      .mockResolvedValueOnce([]) // current recs
+      .mockResolvedValueOnce([{
+        id: 'tp-1', userId: 'user-1', likedGenres: [], dislikedGenres: [],
+        likedThemes: [], favoriteActors: [], services: [], notes: '',
+        lastUpdated: new Date(),
+      }]) // profile
+    const caller = createCaller({ userId: 'user-1' })
+    await expect(caller.refine({ message: 'something dark' })).resolves.toBeDefined()
   })
 })

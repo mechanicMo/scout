@@ -1,10 +1,11 @@
 // packages/api/src/routers/picks.ts
 import { z } from 'zod'
-import { eq, and, gt, desc } from 'drizzle-orm'
+import { eq, and, gt, desc, gte, or, count } from 'drizzle-orm'
+import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'
 import { fetchTrending } from '@scout/shared'
 import { GroqProvider } from '@scout/ai'
-import { db, recommendations, tasteProfiles, watchHistory } from '@scout/db'
+import { db, recommendations, tasteProfiles, watchHistory, usageLogs, users, watchlist } from '@scout/db'
 import { getOrFetchMedia } from '../lib/mediaEnrich'
 import type { TasteProfile, WatchedItem, Recommendation, MediaItem } from '@scout/shared'
 
@@ -22,6 +23,40 @@ function getGroqKey(): string {
   return key
 }
 
+async function checkRateLimit(
+  userId: string,
+  action: 'ai_recs' | 'refine',
+  freeLimit: number
+): Promise<void> {
+  const [user] = await db.select({ tier: users.tier }).from(users).where(eq(users.id, userId)).limit(1)
+  if (!user || user.tier === 'paid') return
+
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
+
+  const [row] = await db
+    .select({ count: count() })
+    .from(usageLogs)
+    .where(and(
+      eq(usageLogs.userId, userId),
+      eq(usageLogs.action, action),
+      gte(usageLogs.createdAt, todayStart)
+    ))
+    .limit(1)
+
+  const used = row?.count ?? 0
+  if (used >= freeLimit) {
+    throw new TRPCError({
+      code: 'TOO_MANY_REQUESTS',
+      message: `Daily ${action} limit reached`,
+    })
+  }
+}
+
+async function logUsage(userId: string, action: 'ai_recs' | 'refine'): Promise<void> {
+  await db.insert(usageLogs).values({ userId, action })
+}
+
 async function enrichRecs(
   recList: Array<{ tmdbId: number; mediaType: string }>,
   tmdbToken: string
@@ -36,11 +71,36 @@ async function enrichRecs(
 
 export const picksRouter = router({
   trending: protectedProcedure
-    .query(() => fetchTrending(getTMDBToken())),
+    .query(async ({ ctx }) => {
+      const userId = ctx.userId
+      const items = await fetchTrending(getTMDBToken())
+
+      const today = new Date().toISOString().split('T')[0]
+
+      const dismissed = await db
+        .select({ tmdbId: watchlist.tmdbId, mediaType: watchlist.mediaType })
+        .from(watchlist)
+        .where(
+          and(
+            eq(watchlist.userId, userId),
+            or(
+              eq(watchlist.status, 'dismissed_never'),
+              and(
+                eq(watchlist.status, 'dismissed_not_now'),
+                gt(watchlist.resurfaceAfter, today)
+              )
+            )
+          )
+        )
+
+      const dismissedSet = new Set(dismissed.map(d => `${d.tmdbId}-${d.mediaType}`))
+      return items.filter(i => !dismissedSet.has(`${i.tmdbId}-${i.mediaType}`))
+    }),
 
   aiRecs: protectedProcedure
     .query(async ({ ctx }) => {
       const userId = ctx.userId
+      await checkRateLimit(userId, 'ai_recs', 1)
 
       // 1. Check for fresh recs in DB
       const freshRecs = await db
@@ -120,6 +180,7 @@ export const picksRouter = router({
         )
       }
 
+      await logUsage(userId, 'ai_recs')
       return enrichRecs(rawRecs, getTMDBToken())
     }),
 
@@ -127,6 +188,7 @@ export const picksRouter = router({
     .input(z.object({ message: z.string().min(1).max(500) }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.userId
+      await checkRateLimit(userId, 'refine', 3)
 
       // Get current recs for context
       const currentRecs = await db
@@ -189,6 +251,7 @@ export const picksRouter = router({
         )
       }
 
+      await logUsage(userId, 'refine')
       return enrichRecs(rawRecs, getTMDBToken())
     }),
 })
