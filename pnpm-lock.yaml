@@ -33,6 +33,9 @@ importers:
       '@react-navigation/native-stack':
         specifier: ^7.14.4
         version: 7.14.10(@react-navigation/native@7.2.2(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.2.0))(react@19.2.0))(react-native-safe-area-context@5.6.2(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.2.0))(react@19.2.0))(react-native-screens@4.23.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.2.0))(react@19.2.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.2.0))(react@19.2.0)
+      '@scout/api':
+        specifier: workspace:*
+        version: link:../../packages/api
       '@scout/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -79,6 +82,9 @@ importers:
       '@testing-library/react-native':
         specifier: ^13.0.0
         version: 13.3.3(jest@29.7.0(@types/node@20.19.37))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.2.0))(react-test-renderer@19.2.0(react@19.2.0))(react@19.2.0)
+      '@types/jest':
+        specifier: ^29.5.0
+        version: 29.5.14
       '@types/react':
         specifier: ~19.1.0
         version: 19.1.17
@@ -147,6 +153,9 @@ importers:
       '@hono/trpc-server':
         specifier: ^0.3.0
         version: 0.3.4(@trpc/server@11.16.0(typescript@5.9.3))(hono@4.12.9)
+      '@scout/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@scout/db':
         specifier: workspace:*
         version: link:../db
@@ -2330,6 +2339,9 @@ packages:
 
   '@types/istanbul-reports@3.0.4':
     resolution: {integrity: sha512-pk2B1NWalF9toCRu6gjBzR69syFjP4Od8WRAX+0mmf9lAjCRicLOWc+ZrxZHx/0XRjotgkF9t6iaMJ+aXcOdZQ==}
+
+  '@types/jest@29.5.14':
+    resolution: {integrity: sha512-ZN+4sdnLUbo8EVvVc2ao0GFW6oVrQRPn4K2lglySj7APvSrgzxHiNNK99us4WDMi57xxA2yggblIAMNhXOotLQ==}
 
   '@types/jsdom@20.0.1':
     resolution: {integrity: sha512-d0r18sZPmMQr1eG35u12FZfhIXNrnsPU/g5wvRKCUf/tOGilKKwYMYGqh33BNR6ba+2gkHw1EUiHoN3mn7E5IQ==}
@@ -8236,6 +8248,11 @@ snapshots:
   '@types/istanbul-reports@3.0.4':
     dependencies:
       '@types/istanbul-lib-report': 3.0.3
+
+  '@types/jest@29.5.14':
+    dependencies:
+      expect: 29.7.0
+      pretty-format: 29.7.0
 
   '@types/jsdom@20.0.1':
     dependencies:
