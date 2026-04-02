@@ -1,19 +1,15 @@
 import { z } from 'zod'
-import { eq, and } from 'drizzle-orm'
 import { router, protectedProcedure } from '../trpc'
+import { searchTMDB } from '@scout/shared'
+import { CACHE_TTL_MS, isCacheStale, cacheRowToMediaItem, upsertMediaCache } from '../lib/mediaEnrich'
 import { db, mediaCache } from '@scout/db'
-import { fetchMedia, searchTMDB } from '@scout/shared'
+import { eq, and } from 'drizzle-orm'
+import { fetchMedia } from '@scout/shared'
 
 function getTMDBToken() {
   const token = process.env.TMDB_READ_ACCESS_TOKEN
   if (!token) throw new Error('TMDB_READ_ACCESS_TOKEN is required')
   return token
-}
-const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000       // 7 days
-const PROVIDERS_TTL_MS = 48 * 60 * 60 * 1000        // 48 hours
-
-function isCacheStale(lastSynced: Date, ttlMs: number): boolean {
-  return Date.now() - lastSynced.getTime() > ttlMs
 }
 
 export const tmdbRouter = router({
@@ -40,82 +36,11 @@ export const tmdbRouter = router({
 
       const hit = cached[0]
       if (hit && !isCacheStale(hit.lastSynced, CACHE_TTL_MS)) {
-        return {
-          tmdbId: hit.tmdbId,
-          mediaType: hit.mediaType,
-          title: hit.title,
-          posterPath: hit.posterPath,
-          backdropPath: hit.backdropPath ?? null,
-          year: hit.year,
-          genres: hit.genres,
-          tagline: hit.tagline ?? null,
-          overview: hit.overview,
-          runtime: hit.runtime,
-          voteAverage: hit.voteAverage ?? null,
-          director: hit.director ?? null,
-          createdBy: hit.createdBy ?? [],
-          cast: (hit.cast ?? []) as import('@scout/shared').CastMember[],
-          contentRating: hit.contentRating ?? null,
-          numberOfSeasons: hit.numberOfSeasons ?? null,
-          numberOfEpisodes: hit.numberOfEpisodes ?? null,
-          statusText: hit.statusText ?? null,
-          network: hit.network ?? null,
-          watchProviders: hit.watchProviders,
-        }
+        return cacheRowToMediaItem(hit)
       }
 
       const fresh = await fetchMedia(tmdbId, mediaType, getTMDBToken())
-
-      await db
-        .insert(mediaCache)
-        .values({
-          tmdbId: fresh.tmdbId,
-          mediaType: fresh.mediaType,
-          title: fresh.title,
-          posterPath: fresh.posterPath,
-          backdropPath: fresh.backdropPath,
-          year: fresh.year,
-          genres: fresh.genres,
-          tagline: fresh.tagline,
-          overview: fresh.overview,
-          runtime: fresh.runtime,
-          voteAverage: fresh.voteAverage,
-          director: fresh.director,
-          createdBy: fresh.createdBy,
-          cast: fresh.cast,
-          contentRating: fresh.contentRating,
-          numberOfSeasons: fresh.numberOfSeasons,
-          numberOfEpisodes: fresh.numberOfEpisodes,
-          statusText: fresh.statusText,
-          network: fresh.network,
-          watchProviders: fresh.watchProviders,
-          lastSynced: new Date(),
-        })
-        .onConflictDoUpdate({
-          target: [mediaCache.tmdbId, mediaCache.mediaType],
-          set: {
-            title: fresh.title,
-            posterPath: fresh.posterPath,
-            backdropPath: fresh.backdropPath,
-            year: fresh.year,
-            genres: fresh.genres,
-            tagline: fresh.tagline,
-            overview: fresh.overview,
-            runtime: fresh.runtime,
-            voteAverage: fresh.voteAverage,
-            director: fresh.director,
-            createdBy: fresh.createdBy,
-            cast: fresh.cast,
-            contentRating: fresh.contentRating,
-            numberOfSeasons: fresh.numberOfSeasons,
-            numberOfEpisodes: fresh.numberOfEpisodes,
-            statusText: fresh.statusText,
-            network: fresh.network,
-            watchProviders: fresh.watchProviders,
-            lastSynced: new Date(),
-          },
-        })
-
+      await upsertMediaCache(fresh)
       return fresh
     }),
 })

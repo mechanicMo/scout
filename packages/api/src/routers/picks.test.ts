@@ -1,7 +1,65 @@
 // packages/api/src/routers/picks.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+// vi.hoisted ensures mockDb is available when vi.mock factories are hoisted
+const { mockDb, resetMockDbChain } = vi.hoisted(() => {
+  const mockDb = {
+    select: vi.fn(),
+    insert: vi.fn(),
+    delete: vi.fn(),
+    from: vi.fn(),
+    where: vi.fn(),
+    limit: vi.fn(),
+    orderBy: vi.fn(),
+    values: vi.fn(),
+    onConflictDoUpdate: vi.fn(),
+  }
+
+  function resetMockDbChain() {
+    for (const key of Object.keys(mockDb) as Array<keyof typeof mockDb>) {
+      ;(mockDb[key] as ReturnType<typeof vi.fn>).mockReturnValue(mockDb)
+    }
+  }
+
+  resetMockDbChain()
+
+  return { mockDb, resetMockDbChain }
+})
+
 vi.mock('@scout/shared', () => ({ fetchTrending: vi.fn() }))
+
+vi.mock('@scout/db', () => ({
+  db: mockDb,
+  mediaCache: {},
+  recommendations: {},
+  tasteProfiles: {},
+  watchHistory: {},
+}))
+
+vi.mock('@scout/ai', () => ({
+  GroqProvider: vi.fn().mockImplementation(() => ({
+    generateRecommendations: vi.fn().mockResolvedValue([
+      { tmdbId: 550, mediaType: 'movie', id: '', userId: 'user-1', generatedAt: new Date().toISOString(), status: 'pending' },
+      { tmdbId: 1396, mediaType: 'tv', id: '', userId: 'user-1', generatedAt: new Date().toISOString(), status: 'pending' },
+    ]),
+    refineRecommendations: vi.fn().mockResolvedValue([
+      { tmdbId: 680, mediaType: 'movie', id: '', userId: 'user-1', generatedAt: new Date().toISOString(), status: 'pending' },
+    ]),
+  })),
+}))
+
+vi.mock('../lib/mediaEnrich', () => ({
+  getOrFetchMedia: vi.fn().mockImplementation(async (tmdbId: number, mediaType: string) => ({
+    tmdbId, mediaType, title: `Movie ${tmdbId}`, posterPath: null, backdropPath: null,
+    year: 2020, genres: ['Drama'], tagline: null, overview: 'Great film', runtime: 120,
+    voteAverage: 8.0, director: null, createdBy: [], cast: [], contentRating: null,
+    numberOfSeasons: null, numberOfEpisodes: null, statusText: null, network: null, watchProviders: {},
+  })),
+}))
+
+// Set required env vars before importing picks router
+process.env.GROQ_API_KEY = 'test-groq-key'
+process.env.TMDB_READ_ACCESS_TOKEN = 'test-tmdb-token'
 
 import { createCallerFactory } from '../trpc'
 import { picksRouter } from './picks'
@@ -26,5 +84,72 @@ describe('picks.trending', () => {
   it('throws when unauthenticated', async () => {
     const caller = createCaller({ userId: null })
     await expect(caller.trending()).rejects.toThrow()
+  })
+})
+
+describe('picks.aiRecs', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetMockDbChain()
+    mockDb.limit.mockResolvedValue([])
+    mockDb.orderBy.mockReturnValue(mockDb)
+  })
+
+  it('returns empty array when profile is sparse', async () => {
+    mockDb.limit
+      .mockResolvedValueOnce([]) // fresh recs
+      .mockResolvedValueOnce([]) // taste profile (sparse → isSparse = true)
+    const caller = createCaller({ userId: 'user-1' })
+    const result = await caller.aiRecs()
+    expect(result).toEqual([])
+  })
+
+  it('returns enriched media items when profile has data', async () => {
+    mockDb.limit
+      .mockResolvedValueOnce([]) // fresh recs
+      .mockResolvedValueOnce([{  // taste profile with data
+        id: 'tp-1', userId: 'user-1',
+        likedGenres: ['Drama'], dislikedGenres: [], likedThemes: [],
+        favoriteActors: [], services: [], notes: '',
+        lastUpdated: new Date(),
+      }])
+      .mockResolvedValueOnce([]) // watch history
+    const caller = createCaller({ userId: 'user-1' })
+    const result = await caller.aiRecs()
+    expect(result.length).toBeGreaterThan(0)
+    expect(result[0]).toHaveProperty('title')
+  })
+
+  it('throws when unauthenticated', async () => {
+    const caller = createCaller({ userId: null })
+    await expect(caller.aiRecs()).rejects.toThrow()
+  })
+})
+
+describe('picks.refine', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetMockDbChain()
+    mockDb.limit.mockResolvedValue([])
+  })
+
+  it('returns refined media items', async () => {
+    mockDb.limit
+      .mockResolvedValueOnce([]) // current recs
+      .mockResolvedValueOnce([{  // taste profile
+        id: 'tp-1', userId: 'user-1',
+        likedGenres: ['Drama'], dislikedGenres: [], likedThemes: [],
+        favoriteActors: [], services: [], notes: '',
+        lastUpdated: new Date(),
+      }])
+
+    const caller = createCaller({ userId: 'user-1' })
+    const result = await caller.refine({ message: 'Something dark' })
+    expect(result.length).toBeGreaterThan(0)
+  })
+
+  it('throws when unauthenticated', async () => {
+    const caller = createCaller({ userId: null })
+    await expect(caller.refine({ message: 'test' })).rejects.toThrow()
   })
 })
