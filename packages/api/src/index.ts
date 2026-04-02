@@ -23,7 +23,7 @@ app.use(
 
 app.get('/health', (c) => c.json({ ok: true }))
 
-const port = Number(process.env.API_PORT ?? 3000)
+const port = Number(process.env.PORT ?? process.env.API_PORT ?? 3000)
 serve({ fetch: app.fetch, port }, () => {
   console.log(`Scout API running on http://localhost:${port}`)
 })
