@@ -1,5 +1,5 @@
 import {
-  pgSchema, pgEnum, uuid, text, timestamp, integer, jsonb, date, primaryKey, unique,
+  pgSchema, pgEnum, uuid, text, timestamp, integer, jsonb, date, primaryKey, unique, real,
 } from 'drizzle-orm/pg-core'
 
 const scout = pgSchema('scout')
@@ -93,7 +93,7 @@ export const mediaCache = scout.table(
     tagline: text('tagline'),
     overview: text('overview').default('').notNull(),
     runtime: integer('runtime'),
-    voteAverage: text('vote_average'),
+    voteAverage: real('vote_average'),
     director: text('director'),
     createdBy: text('created_by').array().default([]).notNull(),
     cast: jsonb('cast').default([]).notNull(),

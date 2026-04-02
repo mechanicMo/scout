@@ -207,7 +207,7 @@ export function MediaDetailScreen({ route, navigation }: Props) {
         {media.cast && media.cast.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Cast</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.castScroll}>
+            <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={styles.castScroll}>
               {media.cast.map((member, i) => (
                 <View key={`${member.name}-${i}`} style={styles.castItem}>
                   {member.profilePath ? (
