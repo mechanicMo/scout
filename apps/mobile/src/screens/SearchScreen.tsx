@@ -3,16 +3,21 @@ import {
   View, Text, TextInput, FlatList, Image,
   TouchableOpacity, ActivityIndicator, StyleSheet,
 } from 'react-native'
+import { useNavigation } from '@react-navigation/native'
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { trpc } from '../lib/trpc'
 import type { MediaItem } from '@scout/shared'
+import type { RootStackParamList } from '../navigation/MainNavigator'
+
+type Nav = NativeStackNavigationProp<RootStackParamList>
 
 const POSTER_BASE = 'https://image.tmdb.org/t/p/w185'
 
 export function SearchScreen() {
+  const navigation = useNavigation<Nav>()
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
 
-  // Debounce input — fire search 400ms after user stops typing
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query.trim()), 400)
     return () => clearTimeout(timer)
@@ -71,6 +76,10 @@ export function SearchScreen() {
         <Text style={styles.emptyText}>Search for movies and shows</Text>
       )}
 
+      {searchQuery.isError && (
+        <Text style={styles.errorText}>{String(searchQuery.error)}</Text>
+      )}
+
       <FlatList
         data={searchQuery.data ?? []}
         keyExtractor={item => `${item.tmdbId}-${item.mediaType}`}
@@ -83,7 +92,11 @@ export function SearchScreen() {
             addMutation.variables?.mediaType === item.mediaType
 
           return (
-            <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.card}
+              onPress={() => navigation.navigate('MediaDetail', { tmdbId: item.tmdbId, mediaType: item.mediaType })}
+              activeOpacity={0.7}
+            >
               {item.posterPath ? (
                 <Image
                   source={{ uri: `${POSTER_BASE}${item.posterPath}` }}
@@ -105,7 +118,7 @@ export function SearchScreen() {
               </View>
               <TouchableOpacity
                 style={[styles.addButton, inWatchlist && styles.addButtonSaved]}
-                onPress={() => !inWatchlist && handleAdd(item)}
+                onPress={() => { if (!inWatchlist) handleAdd(item) }}
                 disabled={inWatchlist || isAdding}
               >
                 {isAdding ? (
@@ -114,7 +127,7 @@ export function SearchScreen() {
                   <Text style={styles.addButtonText}>{inWatchlist ? '✓' : '+'}</Text>
                 )}
               </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
           )
         }}
       />
@@ -132,6 +145,7 @@ const styles = StyleSheet.create({
   },
   spinner: { marginTop: 24 },
   emptyText: { color: '#3a2010', textAlign: 'center', marginTop: 40, fontSize: 15 },
+  errorText: { color: '#e05020', textAlign: 'center', marginTop: 16, fontSize: 13, paddingHorizontal: 16 },
   list: { paddingHorizontal: 16, paddingBottom: 24 },
   card: {
     flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
