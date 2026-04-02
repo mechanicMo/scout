@@ -8,6 +8,7 @@ import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { trpc } from '../lib/trpc'
 import { DismissSheet } from '../components/DismissSheet'
+import { ScoutChatBar } from '../components/ScoutChatBar'
 import { RatingModal } from '../components/RatingModal'
 import { SurveyCard } from '../components/SurveyCard'
 import type { RootStackParamList } from '../navigation/MainNavigator'
@@ -54,6 +55,11 @@ export function PicksScreen() {
   const updateStatusMutation = trpc.watchlist.updateStatus.useMutation({ onSuccess: () => watchlistQuery.refetch() })
   const addHistoryMutation = trpc.watchHistory.add.useMutation()
   const tasteProfileMutation = trpc.tasteProfile.updateFromRating.useMutation()
+  const refineMutation = trpc.picks.refine.useMutation({
+    onSuccess: (data) => {
+      utils.picks.aiRecs.setData(undefined, data)
+    },
+  })
 
   // Use AI recs when available, fall back to trending
   const baseItems: MediaItem[] = (aiRecsQuery.data?.length ?? 0) > 0
@@ -136,6 +142,7 @@ export function PicksScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.header}>Picks</Text>
+      <View style={styles.feedContainer}>
       <FlatList
         data={feedItems}
         keyExtractor={(item, i) => isSurveyItem(item) ? `survey-${i}` : `${item.tmdbId}-${item.mediaType}`}
@@ -193,6 +200,11 @@ export function PicksScreen() {
           )
         }}
       />
+      </View>
+      <ScoutChatBar
+        onSubmit={message => refineMutation.mutate({ message })}
+        isPending={refineMutation.isPending}
+      />
       <DismissSheet
         visible={!!dismissTarget} title={dismissTarget?.title ?? ''}
         onClose={() => setDismissTarget(null)} onNotNow={handleDismissNotNow}
@@ -225,4 +237,5 @@ const styles = StyleSheet.create({
   addButtonSaved: { backgroundColor: '#2e1a0a' },
   addButtonText: { color: '#100a04', fontSize: 16, fontWeight: '800', lineHeight: 18 },
   errorText: { color: '#e05020', fontSize: 14, textAlign: 'center', paddingHorizontal: 32 },
+  feedContainer: { flex: 1 },
 })
