@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { NavigationContainer, DarkTheme } from '@react-navigation/native'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { TabNavigator } from './TabNavigator'
+import { MainNavigator } from './MainNavigator'
 import { LoginScreen } from '../screens/LoginScreen'
 import { SignUpScreen } from '../screens/SignUpScreen'
 import { useAuthStore } from '../store/authStore'
@@ -50,7 +50,7 @@ function AppContent() {
   return (
     <NavigationContainer theme={{ ...DarkTheme, colors: { ...DarkTheme.colors, background: '#100a04', card: '#1f1208', primary: '#e8a020', text: '#fff1e6', border: '#2e1a0a', notification: '#e8a020' } }}>
       {session ? (
-        <TabNavigator />
+        <MainNavigator />
       ) : authScreen === 'login' ? (
         <LoginScreen onNavigateSignUp={() => setAuthScreen('signup')} />
       ) : (
