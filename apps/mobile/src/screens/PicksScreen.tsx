@@ -76,12 +76,13 @@ export function PicksScreen() {
 
   function handleRatingSubmit(score: number, tags: string[]) {
     if (!ratingTarget) return
+    const target = ratingTarget
     addHistoryMutation.mutate(
-      { tmdbId: ratingTarget.tmdbId, mediaType: ratingTarget.mediaType, score, tags, media: buildMediaPayload(ratingTarget) },
+      { tmdbId: target.tmdbId, mediaType: target.mediaType, score, tags, media: buildMediaPayload(target) },
       {
         onSuccess: () => {
-          if (ratingTarget.genres.length > 0) tasteProfileMutation.mutate({ score, genres: ratingTarget.genres })
-          setDismissedIds(prev => new Set([...prev, `${ratingTarget.tmdbId}-${ratingTarget.mediaType}`]))
+          if (target.genres.length > 0) tasteProfileMutation.mutate({ score, genres: target.genres })
+          setDismissedIds(prev => new Set([...prev, `${target.tmdbId}-${target.mediaType}`]))
           setRatingTarget(null)
         },
       }

@@ -66,14 +66,15 @@ export function WatchlistScreen() {
 
   function handleRatingSubmit(score: number, tags: string[]) {
     if (!ratingTarget) return
+    const target = ratingTarget
     addHistoryMutation.mutate(
-      { tmdbId: ratingTarget.tmdbId, mediaType: ratingTarget.mediaType, score, tags },
+      { tmdbId: target.tmdbId, mediaType: target.mediaType, score, tags },
       {
         onSuccess: () => {
-          if (ratingTarget.genres && ratingTarget.genres.length > 0) {
-            tasteProfileMutation.mutate({ score, genres: ratingTarget.genres })
+          if (target.genres && target.genres.length > 0) {
+            tasteProfileMutation.mutate({ score, genres: target.genres })
           }
-          removeMutation.mutate({ id: ratingTarget.id })
+          removeMutation.mutate({ id: target.id })
           setRatingTarget(null)
           historyQuery.refetch()
           listQuery.refetch()

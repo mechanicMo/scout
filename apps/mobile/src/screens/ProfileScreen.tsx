@@ -106,7 +106,7 @@ export function ProfileScreen() {
           </View>
           <TouchableOpacity
             style={[styles.saveButton, (!servicesDirty || updateServicesMutation.isPending) && styles.saveButtonDisabled]}
-            onPress={() => { updateServicesMutation.mutate({ services: selectedServices }); setServicesDirty(false) }}
+            onPress={() => updateServicesMutation.mutate({ services: selectedServices }, { onSuccess: () => setServicesDirty(false) })}
             disabled={!servicesDirty || updateServicesMutation.isPending}
           >
             {updateServicesMutation.isPending
