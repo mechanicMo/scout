@@ -130,6 +130,28 @@ export async function fetchMedia(
   }
 }
 
+/**
+ * Fetch only the watch/streaming providers for a title.
+ * Returns empty object on failure — never throws.
+ */
+export async function fetchWatchProviders(
+  tmdbId: number,
+  mediaType: 'movie' | 'tv',
+  readAccessToken: string
+): Promise<Record<string, unknown>> {
+  const url = `https://api.themoviedb.org/3/${mediaType}/${tmdbId}/watch/providers`
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${readAccessToken}` },
+    })
+    if (!res.ok) return {}
+    const data = await res.json() as { results?: Record<string, unknown> }
+    return data.results ?? {}
+  } catch {
+    return {}
+  }
+}
+
 export async function searchTMDB(
   query: string,
   readAccessToken: string

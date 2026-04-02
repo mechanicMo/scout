@@ -1,9 +1,10 @@
 import { eq, and } from 'drizzle-orm'
 import { db, mediaCache } from '@scout/db'
-import { fetchMedia } from '@scout/shared'
+import { fetchMedia, fetchWatchProviders } from '@scout/shared'
 import type { MediaItem, CastMember } from '@scout/shared'
 
 export const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
+export const WATCH_PROVIDERS_TTL_MS = 48 * 60 * 60 * 1000 // 48 hours
 
 export function isCacheStale(lastSynced: Date, ttlMs: number): boolean {
   return Date.now() - lastSynced.getTime() > ttlMs
@@ -59,6 +60,7 @@ export async function upsertMediaCache(item: MediaItem): Promise<void> {
       network: item.network,
       watchProviders: item.watchProviders,
       lastSynced: new Date(),
+      watchProvidersSynced: new Date(),
     })
     .onConflictDoUpdate({
       target: [mediaCache.tmdbId, mediaCache.mediaType],
@@ -82,6 +84,7 @@ export async function upsertMediaCache(item: MediaItem): Promise<void> {
         network: item.network,
         watchProviders: item.watchProviders,
         lastSynced: new Date(),
+        watchProvidersSynced: new Date(),
       },
     })
 }
@@ -89,6 +92,8 @@ export async function upsertMediaCache(item: MediaItem): Promise<void> {
 /**
  * Get a MediaItem — from cache if fresh, from TMDB API otherwise.
  * Returns null if TMDB fetch fails (bad tmdbId, network error).
+ * If the main cache is still fresh but watch providers are stale (48hr TTL),
+ * refreshes providers in the background without blocking the response.
  */
 export async function getOrFetchMedia(
   tmdbId: number,
@@ -103,6 +108,16 @@ export async function getOrFetchMedia(
 
   const hit = cached[0]
   if (hit && !isCacheStale(hit.lastSynced, CACHE_TTL_MS)) {
+    // Background-refresh watch providers if their TTL has expired
+    const providersSynced = hit.watchProvidersSynced ?? hit.lastSynced
+    if (isCacheStale(providersSynced, WATCH_PROVIDERS_TTL_MS)) {
+      fetchWatchProviders(tmdbId, mediaType, tmdbToken).then(freshProviders => {
+        db.update(mediaCache)
+          .set({ watchProviders: freshProviders, watchProvidersSynced: new Date() })
+          .where(and(eq(mediaCache.tmdbId, tmdbId), eq(mediaCache.mediaType, mediaType)))
+          .catch(() => {}) // fire-and-forget, ignore errors
+      })
+    }
     return cacheRowToMediaItem(hit)
   }
 
