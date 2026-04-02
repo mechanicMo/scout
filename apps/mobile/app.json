@@ -6,8 +6,23 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "splash": { "backgroundColor": "#100a04" },
-    "ios": { "supportsTablet": false },
-    "android": { "adaptiveIcon": { "backgroundColor": "#100a04" } }
+    "splash": {
+      "backgroundColor": "#100a04"
+    },
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#100a04"
+      },
+      "package": "com.mechanicmo.scout"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c67eef98-55e5-4eb6-ad39-84fb40a146cb"
+      }
+    },
+    "owner": "moxpo"
   }
 }
