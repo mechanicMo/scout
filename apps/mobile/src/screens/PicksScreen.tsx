@@ -9,6 +9,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { trpc } from '../lib/trpc'
 import { DismissSheet } from '../components/DismissSheet'
 import { RatingModal } from '../components/RatingModal'
+import { SurveyCard } from '../components/SurveyCard'
 import type { RootStackParamList } from '../navigation/MainNavigator'
 import type { MediaItem } from '@scout/shared'
 
@@ -20,23 +21,61 @@ type FeedTarget = {
   genres: string[]; posterPath: string | null; year: number | null; overview: string
 }
 
+type SurveyItem = { _type: 'survey'; question: string; options: string[] }
+type FeedItem = MediaItem | SurveyItem
+
+function isSurveyItem(item: FeedItem): item is SurveyItem {
+  return '_type' in item && item._type === 'survey'
+}
+
 export function PicksScreen() {
   const navigation = useNavigation<Nav>()
   const [dismissTarget, setDismissTarget] = useState<FeedTarget | null>(null)
   const [ratingTarget, setRatingTarget] = useState<FeedTarget | null>(null)
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
+  const [surveyDismissed, setSurveyDismissed] = useState(false)
 
-  const trendingQuery = trpc.picks.trending.useQuery()
+  const utils = trpc.useUtils()
+  const aiRecsQuery = trpc.picks.aiRecs.useQuery(undefined, { retry: false })
+  const trendingQuery = trpc.picks.trending.useQuery(undefined, {
+    enabled: aiRecsQuery.isFetched && aiRecsQuery.data?.length === 0,
+  })
+  const surveyQuery = trpc.survey.next.useQuery(undefined, { retry: false })
+  const submitSurveyMutation = trpc.survey.submit.useMutation({
+    onSuccess: () => {
+      setSurveyDismissed(false)
+      utils.picks.aiRecs.invalidate()
+      utils.survey.next.invalidate()
+    },
+  })
+
   const watchlistQuery = trpc.watchlist.list.useQuery({})
   const addMutation = trpc.watchlist.add.useMutation({ onSuccess: () => watchlistQuery.refetch() })
   const updateStatusMutation = trpc.watchlist.updateStatus.useMutation({ onSuccess: () => watchlistQuery.refetch() })
   const addHistoryMutation = trpc.watchHistory.add.useMutation()
   const tasteProfileMutation = trpc.tasteProfile.updateFromRating.useMutation()
 
+  // Use AI recs when available, fall back to trending
+  const baseItems: MediaItem[] = (aiRecsQuery.data?.length ?? 0) > 0
+    ? (aiRecsQuery.data ?? [])
+    : (trendingQuery.data ?? [])
+
   const watchlistedSet = new Set(
     watchlistQuery.data?.filter(i => i.status === 'saved').map(i => `${i.tmdbId}-${i.mediaType}`) ?? []
   )
-  const items = (trendingQuery.data ?? []).filter(i => !dismissedIds.has(`${i.tmdbId}-${i.mediaType}`))
+
+  const filteredItems = baseItems.filter(i => !dismissedIds.has(`${i.tmdbId}-${i.mediaType}`))
+
+  // Insert survey card at position 2 (after 2 media items) if available
+  const surveyCard = surveyQuery.data && !surveyDismissed
+    ? { _type: 'survey' as const, question: surveyQuery.data.question, options: surveyQuery.data.options }
+    : null
+
+  const feedItems: FeedItem[] = surveyCard
+    ? [...filteredItems.slice(0, 2), surveyCard, ...filteredItems.slice(2)]
+    : filteredItems
+
+  const isLoading = aiRecsQuery.isLoading || (aiRecsQuery.data?.length === 0 && trendingQuery.isLoading)
 
   function buildMediaPayload(item: FeedTarget) {
     return {
@@ -89,18 +128,32 @@ export function PicksScreen() {
     )
   }
 
-  if (trendingQuery.isLoading) return <View style={styles.centered}><ActivityIndicator color="#e8a020" size="large" /></View>
-  if (trendingQuery.isError) return <View style={styles.centered}><Text style={styles.errorText}>Could not load picks.</Text></View>
+  if (isLoading) return <View style={styles.centered}><ActivityIndicator color="#e8a020" size="large" /></View>
+
+  const hasError = aiRecsQuery.isError && trendingQuery.isError
+  if (hasError) return <View style={styles.centered}><Text style={styles.errorText}>Could not load picks.</Text></View>
 
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.header}>Picks</Text>
       <FlatList
-        data={items}
-        keyExtractor={item => `${item.tmdbId}-${item.mediaType}`}
+        data={feedItems}
+        keyExtractor={(item, i) => isSurveyItem(item) ? `survey-${i}` : `${item.tmdbId}-${item.mediaType}`}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => {
+          if (isSurveyItem(item)) {
+            return (
+              <SurveyCard
+                question={item.question}
+                options={item.options}
+                onAnswer={answer => submitSurveyMutation.mutate({ question: item.question, answer })}
+                onSkip={() => setSurveyDismissed(true)}
+                isPending={submitSurveyMutation.isPending}
+              />
+            )
+          }
+
           const key = `${item.tmdbId}-${item.mediaType}`
           const inWatchlist = watchlistedSet.has(key)
           const isAdding = addMutation.isPending && addMutation.variables?.tmdbId === item.tmdbId && addMutation.variables?.mediaType === item.mediaType
