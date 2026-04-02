@@ -104,6 +104,7 @@ export const mediaCache = scout.table(
     network: text('network'),
     watchProviders: jsonb('watch_providers').default({}).notNull(),
     lastSynced: timestamp('last_synced').defaultNow().notNull(),
+    watchProvidersSynced: timestamp('watch_providers_synced'),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.tmdbId, table.mediaType] }),
@@ -125,3 +126,10 @@ export const follows = scout.table(
     pk: primaryKey({ columns: [table.followerId, table.followingId] }),
   })
 )
+
+export const usageLogs = scout.table('usage_logs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  action: text('action').notNull(), // 'ai_recs' | 'refine'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
