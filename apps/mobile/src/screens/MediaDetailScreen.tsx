@@ -54,7 +54,7 @@ export function MediaDetailScreen({ route, navigation }: Props) {
           genres: m.genres,
           overview: m.overview,
           runtime: m.runtime,
-          watchProviders: m.watchProviders,
+          watchProviders: (m.watchProviders ?? {}) as Record<string, unknown>,
         },
       })
     }
