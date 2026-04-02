@@ -82,6 +82,7 @@ export function PicksScreen() {
     : filteredItems
 
   const isLoading = aiRecsQuery.isLoading || (aiRecsQuery.data?.length === 0 && trendingQuery.isLoading)
+  const isSparseFallback = aiRecsQuery.isFetched && (aiRecsQuery.data?.length ?? 0) === 0 && (trendingQuery.data?.length ?? 0) > 0
 
   function buildMediaPayload(item: FeedTarget) {
     return {
@@ -148,6 +149,12 @@ export function PicksScreen() {
         keyExtractor={(item, i) => isSurveyItem(item) ? `survey-${i}` : `${item.tmdbId}-${item.mediaType}`}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        ListHeaderComponent={isSparseFallback ? (
+          <View style={styles.onboardingBanner}>
+            <Text style={styles.onboardingTitle}>Scout is getting to know you</Text>
+            <Text style={styles.onboardingBody}>Rate a few titles to unlock personalized picks. The more you rate, the better Scout gets.</Text>
+          </View>
+        ) : null}
         renderItem={({ item }) => {
           if (isSurveyItem(item)) {
             return (
@@ -238,4 +245,14 @@ const styles = StyleSheet.create({
   addButtonText: { color: '#100a04', fontSize: 16, fontWeight: '800', lineHeight: 18 },
   errorText: { color: '#e05020', fontSize: 14, textAlign: 'center', paddingHorizontal: 32 },
   feedContainer: { flex: 1 },
+  onboardingBanner: {
+    backgroundColor: '#1a0f06',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#3a2010',
+    padding: 16,
+    marginBottom: 16,
+  },
+  onboardingTitle: { color: '#e8a020', fontSize: 13, fontWeight: '700', marginBottom: 6 },
+  onboardingBody: { color: '#7a5535', fontSize: 13, lineHeight: 19 },
 })
