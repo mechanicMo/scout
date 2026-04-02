@@ -32,7 +32,6 @@ export const tmdbRouter = router({
     .query(async ({ input }) => {
       const { tmdbId, mediaType } = input
 
-      // Check cache
       const cached = await db
         .select()
         .from(mediaCache)
@@ -46,18 +45,27 @@ export const tmdbRouter = router({
           mediaType: hit.mediaType,
           title: hit.title,
           posterPath: hit.posterPath,
+          backdropPath: hit.backdropPath ?? null,
           year: hit.year,
           genres: hit.genres,
+          tagline: hit.tagline ?? null,
           overview: hit.overview,
           runtime: hit.runtime,
+          voteAverage: hit.voteAverage ? parseFloat(hit.voteAverage) : null,
+          director: hit.director ?? null,
+          createdBy: hit.createdBy ?? [],
+          cast: (hit.cast ?? []) as import('@scout/shared').CastMember[],
+          contentRating: hit.contentRating ?? null,
+          numberOfSeasons: hit.numberOfSeasons ?? null,
+          numberOfEpisodes: hit.numberOfEpisodes ?? null,
+          statusText: hit.statusText ?? null,
+          network: hit.network ?? null,
           watchProviders: hit.watchProviders,
         }
       }
 
-      // Fetch fresh from TMDB
       const fresh = await fetchMedia(tmdbId, mediaType, getTMDBToken())
 
-      // Upsert into cache
       await db
         .insert(mediaCache)
         .values({
@@ -65,10 +73,21 @@ export const tmdbRouter = router({
           mediaType: fresh.mediaType,
           title: fresh.title,
           posterPath: fresh.posterPath,
+          backdropPath: fresh.backdropPath,
           year: fresh.year,
           genres: fresh.genres,
+          tagline: fresh.tagline,
           overview: fresh.overview,
           runtime: fresh.runtime,
+          voteAverage: fresh.voteAverage != null ? String(fresh.voteAverage) : null,
+          director: fresh.director,
+          createdBy: fresh.createdBy,
+          cast: fresh.cast,
+          contentRating: fresh.contentRating,
+          numberOfSeasons: fresh.numberOfSeasons,
+          numberOfEpisodes: fresh.numberOfEpisodes,
+          statusText: fresh.statusText,
+          network: fresh.network,
           watchProviders: fresh.watchProviders,
           lastSynced: new Date(),
         })
@@ -77,10 +96,21 @@ export const tmdbRouter = router({
           set: {
             title: fresh.title,
             posterPath: fresh.posterPath,
+            backdropPath: fresh.backdropPath,
             year: fresh.year,
             genres: fresh.genres,
+            tagline: fresh.tagline,
             overview: fresh.overview,
             runtime: fresh.runtime,
+            voteAverage: fresh.voteAverage != null ? String(fresh.voteAverage) : null,
+            director: fresh.director,
+            createdBy: fresh.createdBy,
+            cast: fresh.cast,
+            contentRating: fresh.contentRating,
+            numberOfSeasons: fresh.numberOfSeasons,
+            numberOfEpisodes: fresh.numberOfEpisodes,
+            statusText: fresh.statusText,
+            network: fresh.network,
             watchProviders: fresh.watchProviders,
             lastSynced: new Date(),
           },

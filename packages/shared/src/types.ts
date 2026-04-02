@@ -1,14 +1,31 @@
 export type MediaType = 'movie' | 'tv'
 
+export interface CastMember {
+  name: string
+  character: string
+  profilePath: string | null
+}
+
 export interface MediaItem {
   tmdbId: number
   mediaType: MediaType
   title: string
   posterPath: string | null
+  backdropPath: string | null
   year: number | null
   genres: string[]
+  tagline: string | null
   overview: string
   runtime: number | null
+  voteAverage: number | null
+  director: string | null
+  createdBy: string[]
+  cast: CastMember[]
+  contentRating: string | null
+  numberOfSeasons: number | null
+  numberOfEpisodes: number | null
+  statusText: string | null
+  network: string | null
   watchProviders: WatchProviders
 }
 
