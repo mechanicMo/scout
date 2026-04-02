@@ -4,7 +4,11 @@ import { router, protectedProcedure } from '../trpc'
 import { db, mediaCache } from '@scout/db'
 import { fetchMedia, searchTMDB } from '@scout/shared'
 
-const TMDB_TOKEN = process.env.TMDB_READ_ACCESS_TOKEN!
+function getTMDBToken() {
+  const token = process.env.TMDB_READ_ACCESS_TOKEN
+  if (!token) throw new Error('TMDB_READ_ACCESS_TOKEN is required')
+  return token
+}
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000       // 7 days
 const PROVIDERS_TTL_MS = 48 * 60 * 60 * 1000        // 48 hours
 
@@ -16,7 +20,8 @@ export const tmdbRouter = router({
   search: protectedProcedure
     .input(z.object({ query: z.string().min(1) }))
     .query(async ({ input }) => {
-      return searchTMDB(input.query, TMDB_TOKEN)
+      const results = await searchTMDB(input.query, getTMDBToken())
+      return results
     }),
 
   getMedia: protectedProcedure
@@ -50,7 +55,7 @@ export const tmdbRouter = router({
       }
 
       // Fetch fresh from TMDB
-      const fresh = await fetchMedia(tmdbId, mediaType, TMDB_TOKEN)
+      const fresh = await fetchMedia(tmdbId, mediaType, getTMDBToken())
 
       // Upsert into cache
       await db
