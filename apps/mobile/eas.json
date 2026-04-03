@@ -11,7 +11,7 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://efklpylddmczsiwgqpgn.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVma2xweWxkZG1jenNpd2dxcGduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MzY5MzMsImV4cCI6MjA5MDUxMjkzM30.N3UP0ZatCf1PxaT5DlSxex170zeP9Sd2C3ZArQZWjvU",
-        "EXPO_PUBLIC_API_URL": "http://192.168.0.150:3000"
+        "EXPO_PUBLIC_API_URL": "https://scout-api-3d24.onrender.com"
       }
     }
   }
