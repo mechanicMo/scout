@@ -11,6 +11,12 @@ export const watchlistStatusEnum = pgEnum('watchlist_status', [
   'dismissed_not_now',
   'dismissed_never',
 ])
+export const watchingStatusEnum = pgEnum('watching_status', [
+  'not_started',
+  'watching',
+  'completed',
+  'dropped',
+])
 export const recStatusEnum = pgEnum('rec_status', ['pending', 'accepted', 'dismissed'])
 
 export const users = scout.table('users', {
@@ -54,6 +60,9 @@ export const watchlist = scout.table('watchlist', {
   mediaType: mediaTypeEnum('media_type').notNull(),
   status: watchlistStatusEnum('status').default('saved').notNull(),
   resurfaceAfter: date('resurface_after'),
+  watchingStatus: watchingStatusEnum('watching_status').default('not_started').notNull(),
+  currentSeason: integer('current_season'),
+  currentEpisode: integer('current_episode'),
   addedAt: timestamp('added_at').defaultNow().notNull(),
 }, (table) => ({
   userMediaUnique: unique('watchlist_user_media_unique').on(table.userId, table.tmdbId, table.mediaType),

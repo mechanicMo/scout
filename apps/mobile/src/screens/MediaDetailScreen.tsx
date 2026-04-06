@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import {
   View, Text, Image, ScrollView, TouchableOpacity,
   ActivityIndicator, StyleSheet,
@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigation/MainNavigator'
 import { trpc } from '../lib/trpc'
+import { WatchingStatusModal } from '../components/WatchingStatusModal'
 
 const POSTER_BASE = 'https://image.tmdb.org/t/p/w342'
 const BACKDROP_BASE = 'https://image.tmdb.org/t/p/w780'
@@ -28,13 +29,20 @@ function formatScore(score: number): string {
 
 export function MediaDetailScreen({ route, navigation }: Props) {
   const { tmdbId, mediaType } = route.params
+  const [showWatchingModal, setShowWatchingModal] = useState(false)
+  const [addedItemId, setAddedItemId] = useState<string | null>(null)
 
   const utils = trpc.useUtils()
   const mediaQuery = trpc.tmdb.getMedia.useQuery({ tmdbId, mediaType })
   const watchlistQuery = trpc.watchlist.list.useQuery({})
+  const updateWatchingMutation = trpc.watchlist.updateWatching.useMutation()
 
   const addMutation = trpc.watchlist.add.useMutation({
-    onSuccess: () => utils.watchlist.list.invalidate(),
+    onSuccess: (data) => {
+      utils.watchlist.list.invalidate()
+      setAddedItemId(data.id)
+      setShowWatchingModal(true)
+    },
   })
   const removeMutation = trpc.watchlist.remove.useMutation({
     onSuccess: () => utils.watchlist.list.invalidate(),
@@ -65,6 +73,18 @@ export function MediaDetailScreen({ route, navigation }: Props) {
           watchProviders: (m.watchProviders ?? {}) as Record<string, unknown>,
         },
       })
+    }
+  }
+
+  function handleWatchingStatusSubmit(watchingStatus: 'not_started' | 'watching', season?: number, episode?: number) {
+    if (!addedItemId) return
+    if (watchingStatus === 'watching') {
+      updateWatchingMutation.mutate(
+        { id: addedItemId, watchingStatus, currentSeason: season, currentEpisode: episode },
+        { onSuccess: () => setShowWatchingModal(false) }
+      )
+    } else {
+      setShowWatchingModal(false)
     }
   }
 
@@ -245,6 +265,16 @@ export function MediaDetailScreen({ route, navigation }: Props) {
           </View>
         )}
       </ScrollView>
+
+      <WatchingStatusModal
+        visible={showWatchingModal}
+        mediaType={mediaType}
+        title={mediaQuery.data?.title ?? ''}
+        totalSeasons={mediaQuery.data?.numberOfSeasons ?? null}
+        onClose={() => setShowWatchingModal(false)}
+        onSubmit={handleWatchingStatusSubmit}
+        isPending={updateWatchingMutation.isPending}
+      />
     </SafeAreaView>
   )
 }
