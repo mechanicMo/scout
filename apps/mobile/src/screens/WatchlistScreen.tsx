@@ -28,14 +28,15 @@ export function WatchlistScreen() {
   const [dismissTarget, setDismissTarget] = useState<ActionTarget | null>(null)
   const [ratingTarget, setRatingTarget] = useState<ActionTarget | null>(null)
 
+  const utils = trpc.useUtils()
   const listQuery = trpc.watchlist.list.useQuery({ status: 'saved' })
   const historyQuery = trpc.watchHistory.list.useQuery()
 
   const removeMutation = trpc.watchlist.remove.useMutation({
-    onSuccess: () => listQuery.refetch(),
+    onSuccess: () => utils.watchlist.list.invalidate(),
   })
   const updateStatusMutation = trpc.watchlist.updateStatus.useMutation({
-    onSuccess: () => listQuery.refetch(),
+    onSuccess: () => utils.watchlist.list.invalidate(),
   })
   const addHistoryMutation = trpc.watchHistory.add.useMutation()
   const tasteProfileMutation = trpc.tasteProfile.updateFromRating.useMutation()

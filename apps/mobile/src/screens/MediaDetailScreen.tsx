@@ -29,14 +29,15 @@ function formatScore(score: number): string {
 export function MediaDetailScreen({ route, navigation }: Props) {
   const { tmdbId, mediaType } = route.params
 
+  const utils = trpc.useUtils()
   const mediaQuery = trpc.tmdb.getMedia.useQuery({ tmdbId, mediaType })
   const watchlistQuery = trpc.watchlist.list.useQuery({})
 
   const addMutation = trpc.watchlist.add.useMutation({
-    onSuccess: () => watchlistQuery.refetch(),
+    onSuccess: () => utils.watchlist.list.invalidate(),
   })
   const removeMutation = trpc.watchlist.remove.useMutation({
-    onSuccess: () => watchlistQuery.refetch(),
+    onSuccess: () => utils.watchlist.list.invalidate(),
   })
 
   const watchlistItem = watchlistQuery.data?.find(

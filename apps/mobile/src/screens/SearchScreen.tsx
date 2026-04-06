@@ -23,6 +23,7 @@ export function SearchScreen() {
     return () => clearTimeout(timer)
   }, [query])
 
+  const utils = trpc.useUtils()
   const searchQuery = trpc.tmdb.search.useQuery(
     { query: debouncedQuery },
     { enabled: debouncedQuery.length > 1 }
@@ -31,7 +32,7 @@ export function SearchScreen() {
   const watchlistQuery = trpc.watchlist.list.useQuery({})
 
   const addMutation = trpc.watchlist.add.useMutation({
-    onSuccess: () => watchlistQuery.refetch(),
+    onSuccess: () => utils.watchlist.list.invalidate(),
   })
 
   const watchlistedSet = new Set(

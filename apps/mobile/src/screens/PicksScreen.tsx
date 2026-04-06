@@ -51,8 +51,8 @@ export function PicksScreen() {
   })
 
   const watchlistQuery = trpc.watchlist.list.useQuery({})
-  const addMutation = trpc.watchlist.add.useMutation({ onSuccess: () => watchlistQuery.refetch() })
-  const updateStatusMutation = trpc.watchlist.updateStatus.useMutation({ onSuccess: () => watchlistQuery.refetch() })
+  const addMutation = trpc.watchlist.add.useMutation({ onSuccess: () => utils.watchlist.list.invalidate() })
+  const updateStatusMutation = trpc.watchlist.updateStatus.useMutation({ onSuccess: () => utils.watchlist.list.invalidate() })
   const addHistoryMutation = trpc.watchHistory.add.useMutation()
   const tasteProfileMutation = trpc.tasteProfile.updateFromRating.useMutation()
   const tagsQuery = trpc.tmdb.generateTags.useQuery(
@@ -102,8 +102,8 @@ export function PicksScreen() {
   async function dismissWithStatus(target: FeedTarget, status: 'dismissed_not_now' | 'dismissed_never', resurfaceAfter?: string) {
     const key = `${target.tmdbId}-${target.mediaType}`
     await addMutation.mutateAsync({ tmdbId: target.tmdbId, mediaType: target.mediaType, media: buildMediaPayload(target) })
-    await watchlistQuery.refetch()
-    const item = watchlistQuery.data?.find(w => w.tmdbId === target.tmdbId && w.mediaType === target.mediaType)
+    const { data } = await utils.watchlist.list.refetch()
+    const item = data?.find(w => w.tmdbId === target.tmdbId && w.mediaType === target.mediaType)
     if (item) updateStatusMutation.mutate({ id: item.id, status, resurfaceAfter })
     setDismissedIds(prev => new Set([...prev, key]))
     setDismissTarget(null)
