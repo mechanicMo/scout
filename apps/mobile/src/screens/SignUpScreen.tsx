@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native'
 import { supabase } from '../lib/supabase'
 import { ScreenContainer } from '../components/ScreenContainer'
+import { colors, typography, spacing, radius } from '../theme'
 
 export function SignUpScreen({ onNavigateLogin }: { onNavigateLogin: () => void }) {
   const [email, setEmail] = useState('')
@@ -79,21 +80,53 @@ export function SignUpScreen({ onNavigateLogin }: { onNavigateLogin: () => void 
 }
 
 const styles = StyleSheet.create({
-  logo: { fontSize: 48, fontWeight: '800', color: '#fff1e6', letterSpacing: -2, marginBottom: 4 },
-  tagline: { fontSize: 14, color: '#7a5535', marginBottom: 40 },
+  logo: {
+    ...typography.display,
+    marginBottom: spacing.xs,
+  },
+  tagline: {
+    ...typography.caption,
+    marginBottom: spacing['3xl'],
+  },
   input: {
-    backgroundColor: '#1f1208', borderWidth: 1, borderColor: '#2e1a0a',
-    borderRadius: 10, padding: 14, color: '#fff1e6', marginBottom: 12, fontSize: 15,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    color: colors.text,
+    marginBottom: spacing.md,
+    ...typography.body,
   },
   button: {
-    backgroundColor: '#e8a020', borderRadius: 10, padding: 16,
-    alignItems: 'center', marginTop: 8,
+    backgroundColor: colors.gold,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+    marginTop: spacing.lg,
   },
-  buttonText: { color: '#100a04', fontWeight: '800', fontSize: 16 },
-  link: { color: '#7a5535', textAlign: 'center', marginTop: 20, fontSize: 14 },
+  buttonText: {
+    color: colors.bg,
+    ...typography.button,
+  },
+  link: {
+    ...typography.body,
+    color: colors.textSoft,
+    textAlign: 'center',
+    marginTop: spacing.xl,
+  },
   confirmBox: { alignItems: 'center' },
-  confirmIcon: { fontSize: 48, marginBottom: 16 },
-  confirmTitle: { fontSize: 24, fontWeight: '800', color: '#fff1e6', marginBottom: 12 },
-  confirmBody: { color: '#7a5535', fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 32 },
-  confirmEmail: { color: '#e8a020', fontWeight: '600' },
+  confirmIcon: { fontSize: 48, marginBottom: spacing.lg },
+  confirmTitle: {
+    ...typography.heading,
+    marginBottom: spacing.md,
+  },
+  confirmBody: {
+    ...typography.body,
+    textAlign: 'center',
+    marginBottom: spacing['3xl'],
+  },
+  confirmEmail: { color: colors.gold, fontWeight: '600' },
 })
