@@ -143,7 +143,15 @@ export function MediaDetailScreen({ route, navigation }: Props) {
         {/* Hero row */}
         <View style={styles.hero}>
           {media.posterPath ? (
-            <Image source={{ uri: `${POSTER_BASE}${media.posterPath}` }} style={styles.poster} />
+            <View style={styles.posterContainer}>
+              <Image source={{ uri: `${POSTER_BASE}${media.posterPath}` }} style={styles.poster} />
+              <LinearGradient
+                colors={['transparent', colors.bg]}
+                style={styles.posterGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+              />
+            </View>
           ) : (
             <View style={[styles.poster, styles.posterFallback]} />
           )}
@@ -217,7 +225,7 @@ export function MediaDetailScreen({ route, navigation }: Props) {
         {/* Overview */}
         {media.overview ? (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Overview</Text>
+            <Text style={styles.sectionLabel}>OVERVIEW</Text>
             <Text style={styles.overview}>{media.overview}</Text>
           </View>
         ) : null}
@@ -225,13 +233,13 @@ export function MediaDetailScreen({ route, navigation }: Props) {
         {/* Director / Created by */}
         {media.director ? (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Director</Text>
+            <Text style={styles.sectionLabel}>DIRECTOR</Text>
             <Text style={styles.bodyText}>{media.director}</Text>
           </View>
         ) : null}
         {media.createdBy && media.createdBy.length > 0 ? (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Created by</Text>
+            <Text style={styles.sectionLabel}>CREATED BY</Text>
             <Text style={styles.bodyText}>{media.createdBy.join(', ')}</Text>
           </View>
         ) : null}
@@ -239,7 +247,7 @@ export function MediaDetailScreen({ route, navigation }: Props) {
         {/* Cast */}
         {media.cast && media.cast.length > 0 ? (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Cast</Text>
+            <Text style={styles.sectionLabel}>CAST</Text>
             <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} style={styles.castScroll}>
               {media.cast.map((member, i) => (
                 <View key={`${member.name}-${i}`} style={styles.castItem}>
@@ -262,7 +270,7 @@ export function MediaDetailScreen({ route, navigation }: Props) {
         {/* Streaming */}
         {providers.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Where to Watch</Text>
+            <Text style={styles.sectionLabel}>WHERE TO WATCH</Text>
             <View style={styles.providerRow}>
               {providers.slice(0, 6).map((p, i) => (
                 <View key={`${p.providerName ?? i}-${i}`} style={styles.providerItem}>
@@ -305,15 +313,17 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing['3xl'] },
 
   hero: { flexDirection: 'row', gap: spacing.lg, marginBottom: spacing.xxl, paddingHorizontal: spacing.lg, marginTop: spacing.lg },
-  poster: { width: 110, height: 165, borderRadius: radius.lg, ...shadows.md },
+  posterContainer: { position: 'relative', overflow: 'hidden', borderRadius: radius.lg, ...shadows.lg },
+  poster: { width: 110, height: 165, borderRadius: radius.lg },
+  posterGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 60 },
   posterFallback: { backgroundColor: colors.surfaceHigh },
   heroInfo: { flex: 1, justifyContent: 'flex-start', gap: spacing.xs },
 
-  title: { ...typography.heading, flexShrink: 1 },
-  tagline: { ...typography.caption, fontStyle: 'italic', color: colors.textMuted },
-  meta: { ...typography.caption },
-  genres: { ...typography.caption, color: colors.textDim },
-  network: { ...typography.caption, ...({ fontFamily: 'Outfit_600SemiBold' } as any) },
+  title: { ...typography.heading, color: colors.text, flexShrink: 1, marginBottom: spacing.xs },
+  tagline: { ...typography.caption, fontStyle: 'italic', color: colors.textMuted, marginBottom: spacing.xs },
+  meta: { ...typography.caption, color: colors.textSoft },
+  genres: { ...typography.caption, color: colors.textDim, marginTop: spacing.xs },
+  network: { ...typography.caption, color: colors.textMuted, ...({ fontFamily: 'Outfit_600SemiBold' } as any), marginTop: spacing.xs },
 
   badgeRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xxs, alignItems: 'center' },
   scoreBadge: {
@@ -334,39 +344,40 @@ const styles = StyleSheet.create({
   ratingText: { ...typography.micro, color: colors.textMuted },
 
   watchlistButton: {
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
     backgroundColor: colors.gold,
-    borderRadius: radius.pill,
+    borderRadius: radius.md,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
     alignItems: 'center',
+    justifyContent: 'center',
     ...shadows.md,
   },
   watchlistButtonSaved: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.gold,
     ...Platform.select({ ios: { shadowOpacity: 0 }, android: { elevation: 0 }, default: {} }),
   },
-  watchlistButtonText: { ...typography.button, color: colors.bg },
-  watchlistButtonTextSaved: { ...typography.button, color: colors.textMuted },
+  watchlistButtonText: { ...typography.button, color: colors.bg, fontFamily: 'Outfit_600SemiBold' },
+  watchlistButtonTextSaved: { ...typography.button, color: colors.gold, fontFamily: 'Outfit_600SemiBold' },
 
   section: { marginBottom: spacing.xxl, paddingHorizontal: spacing.lg },
-  sectionLabel: { ...typography.label, marginBottom: spacing.sm },
-  overview: { ...typography.body },
-  bodyText: { ...typography.body },
+  sectionLabel: { ...typography.label, color: colors.gold, marginBottom: spacing.md, letterSpacing: 0.8 },
+  overview: { ...typography.body, color: colors.textSoft, lineHeight: 22 },
+  bodyText: { ...typography.body, color: colors.textSoft, lineHeight: 22 },
 
   castScroll: { marginHorizontal: -spacing.xs },
   castItem: { width: 72, marginHorizontal: spacing.xs },
-  castPhoto: { width: 64, height: 96, borderRadius: radius.md, marginBottom: spacing.sm },
+  castPhoto: { width: 64, height: 96, borderRadius: radius.md, marginBottom: spacing.sm, backgroundColor: colors.surfaceRaised, ...shadows.sm },
   castPhotoFallback: { backgroundColor: colors.surfaceHigh },
-  castName: { ...typography.micro, color: colors.text, fontFamily: 'Outfit_600SemiBold', lineHeight: 14 },
-  castCharacter: { ...typography.micro, color: colors.textDim, lineHeight: 13, marginTop: spacing.xxs },
+  castName: { ...typography.micro, color: colors.text, fontFamily: 'Outfit_600SemiBold', lineHeight: 14, marginBottom: spacing.xxs },
+  castCharacter: { ...typography.micro, color: colors.textDim, lineHeight: 13 },
 
-  providerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  providerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg },
   providerItem: { alignItems: 'center', width: 56 },
-  providerLogo: { width: 40, height: 40, borderRadius: radius.md, marginBottom: spacing.xs },
-  providerName: { ...typography.micro, textAlign: 'center' },
+  providerLogo: { width: 40, height: 40, borderRadius: radius.md, marginBottom: spacing.sm, backgroundColor: colors.surfaceRaised, ...shadows.sm },
+  providerName: { ...typography.micro, textAlign: 'center', color: colors.textMuted },
 
   errorText: { ...typography.body, color: colors.error, textAlign: 'center', marginTop: spacing['3xl'] },
 })
