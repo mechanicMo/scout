@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { trpc } from '../lib/trpc'
 import { useAuthStore } from '../store/authStore'
 import { supabase } from '../lib/supabase'
+import { colors, typography, spacing, radius, shadows } from '../theme'
 
 const ALL_SERVICES = ['Netflix', 'Prime Video', 'Disney+', 'Max', 'Hulu', 'Apple TV+', 'Peacock', 'Paramount+']
 
@@ -127,31 +128,31 @@ export function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#100a04' },
-  centered: { flex: 1, backgroundColor: '#100a04', alignItems: 'center', justifyContent: 'center' },
-  scroll: { padding: 16, paddingBottom: 48 },
-  header: { fontSize: 28, fontWeight: '800', color: '#fff1e6', marginBottom: 20 },
-  userCard: { backgroundColor: '#1a0f06', borderRadius: 12, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: '#2e1a0a' },
-  displayName: { color: '#fff1e6', fontSize: 18, fontWeight: '700', marginBottom: 4 },
-  email: { color: '#7a5535', fontSize: 13 },
-  section: { marginBottom: 28 },
-  sectionLabel: { color: '#7a5535', fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 },
-  emptyHint: { color: '#3a2010', fontSize: 13, lineHeight: 18 },
-  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pillLiked: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 16, backgroundColor: '#2a1800', borderWidth: 1, borderColor: '#e8a020' },
-  pillLikedText: { color: '#e8a020', fontSize: 13, fontWeight: '600' },
-  pillDisliked: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 16, backgroundColor: '#200808', borderWidth: 1, borderColor: '#6b2020' },
-  pillDislikedText: { color: '#c05050', fontSize: 13 },
-  surveyHint: { color: '#5a3520', fontSize: 12, marginBottom: 12, lineHeight: 17 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#2e1a0a', backgroundColor: '#1a0f06' },
-  chipSelected: { backgroundColor: '#e8a020', borderColor: '#e8a020' },
-  chipText: { color: '#5a3520', fontSize: 13 },
-  chipTextSelected: { color: '#100a04', fontWeight: '700' },
-  saveButton: { backgroundColor: '#e8a020', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
-  saveButtonDisabled: { backgroundColor: '#2e1a0a' },
-  saveButtonText: { color: '#100a04', fontSize: 15, fontWeight: '800' },
-  savedConfirm: { color: '#e8a020', fontSize: 12, textAlign: 'center', marginTop: 8 },
-  signOutButton: { marginTop: 8, paddingVertical: 14, alignItems: 'center', backgroundColor: '#1a0f06', borderRadius: 12, borderWidth: 1, borderColor: '#2e1a0a' },
-  signOutText: { color: '#5a3520', fontSize: 15, fontWeight: '600' },
+  container: { flex: 1, backgroundColor: colors.bg },
+  centered: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  scroll: { padding: spacing.lg, paddingBottom: spacing.lg },
+  header: { ...typography.heading, marginBottom: spacing.lg },
+  userCard: { backgroundColor: colors.surfaceRaised, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.lg, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
+  displayName: { ...typography.title, color: colors.text, marginBottom: spacing.xs },
+  email: { ...typography.caption, color: colors.textMuted },
+  section: { marginBottom: spacing.lg },
+  sectionLabel: { ...typography.label, color: colors.gold, marginBottom: spacing.md },
+  emptyHint: { color: colors.textDim, fontSize: 13, lineHeight: 18 },
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  pillLiked: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.pill, backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.gold },
+  pillLikedText: { color: colors.gold, fontSize: 13, fontWeight: '600' },
+  pillDisliked: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.pill, backgroundColor: colors.surfaceHigh, borderWidth: 1, borderColor: colors.error },
+  pillDislikedText: { color: colors.error, fontSize: 13 },
+  surveyHint: { ...typography.caption, color: colors.textMuted, marginBottom: spacing.md },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.lg },
+  chip: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceRaised },
+  chipSelected: { backgroundColor: colors.gold, borderColor: colors.gold },
+  chipText: { color: colors.textMuted, fontSize: 13 },
+  chipTextSelected: { color: colors.bg, fontWeight: '700' },
+  saveButton: { backgroundColor: colors.gold, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center' },
+  saveButtonDisabled: { backgroundColor: colors.border },
+  saveButtonText: { color: colors.bg, ...typography.button },
+  savedConfirm: { color: colors.gold, fontSize: 12, textAlign: 'center', marginTop: spacing.sm },
+  signOutButton: { marginTop: spacing.xs, paddingVertical: spacing.md, alignItems: 'center', backgroundColor: colors.surfaceRaised, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border },
+  signOutText: { color: colors.error, ...typography.body },
 })
