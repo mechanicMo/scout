@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { NavigationContainer, DarkTheme } from '@react-navigation/native'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient } from '@tanstack/react-query'
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { MainNavigator } from './MainNavigator'
 import { LoginScreen } from '../screens/LoginScreen'
 import { SignUpScreen } from '../screens/SignUpScreen'
@@ -8,8 +10,35 @@ import { useAuthStore } from '../store/authStore'
 import { supabase } from '../lib/supabase'
 import { trpc, createTRPCClient } from '../lib/trpc'
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      gcTime: 1000 * 60 * 60 * 24, // 24 hours — keep cache for cold start
+    },
+  },
+})
 const trpcClient = createTRPCClient()
+
+const asyncStoragePersister = {
+  persistClient: async (client: unknown) => {
+    try {
+      await AsyncStorage.setItem('rq-cache', JSON.stringify(client))
+    } catch {}
+  },
+  restoreClient: async () => {
+    try {
+      const raw = await AsyncStorage.getItem('rq-cache')
+      return raw ? JSON.parse(raw) : undefined
+    } catch {
+      return undefined
+    }
+  },
+  removeClient: async () => {
+    try {
+      await AsyncStorage.removeItem('rq-cache')
+    } catch {}
+  },
+}
 
 // Inner component — lives inside trpc.Provider so can use tRPC hooks
 function AppContent() {
@@ -63,9 +92,12 @@ function AppContent() {
 export function RootNavigator() {
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{ persister: asyncStoragePersister }}
+      >
         <AppContent />
-      </QueryClientProvider>
+      </PersistQueryClientProvider>
     </trpc.Provider>
   )
 }

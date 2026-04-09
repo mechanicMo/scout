@@ -10,3 +10,6 @@ dist/
 # Expo native build outputs
 apps/mobile/ios/
 apps/mobile/android/
+
+# local session state (not committed)
+SESSION.md

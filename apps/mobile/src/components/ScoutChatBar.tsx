@@ -2,7 +2,7 @@
 import React, { useState } from 'react'
 import {
   View, TextInput, TouchableOpacity, Text,
-  ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform,
+  ActivityIndicator, StyleSheet,
 } from 'react-native'
 
 interface Props {
@@ -21,30 +21,28 @@ export function ScoutChatBar({ onSubmit, isPending }: Props) {
   }
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={styles.container}>
-        <TextInput
-          style={styles.input}
-          placeholder="Tell Scout what you're in the mood for..."
-          placeholderTextColor="#3a2010"
-          value={text}
-          onChangeText={setText}
-          onSubmitEditing={handleSubmit}
-          returnKeyType="send"
-          editable={!isPending}
-          maxLength={500}
-        />
-        <TouchableOpacity
-          style={[styles.sendButton, (!text.trim() || isPending) && styles.sendButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={!text.trim() || isPending}
-        >
-          {isPending
-            ? <ActivityIndicator size="small" color="#100a04" />
-            : <Text style={styles.sendText}>→</Text>}
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+    <View style={styles.container}>
+      <TextInput
+        style={styles.input}
+        placeholder="Tell Scout what you're in the mood for..."
+        placeholderTextColor="#5a3520"
+        value={text}
+        onChangeText={setText}
+        onSubmitEditing={handleSubmit}
+        returnKeyType="send"
+        editable={!isPending}
+        maxLength={500}
+      />
+      <TouchableOpacity
+        style={[styles.sendButton, (!text.trim() || isPending) && styles.sendButtonDisabled]}
+        onPress={handleSubmit}
+        disabled={!text.trim() || isPending}
+      >
+        {isPending
+          ? <ActivityIndicator size="small" color="#100a04" />
+          : <Text style={styles.sendText}>→</Text>}
+      </TouchableOpacity>
+    </View>
   )
 }
 

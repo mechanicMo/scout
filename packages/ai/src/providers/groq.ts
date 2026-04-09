@@ -11,14 +11,22 @@ export class GroqProvider implements AIProvider {
   constructor(private readonly apiKey: string) {}
 
   private async chat(messages: GroqMessage[], maxTokens = 800): Promise<string> {
-    const res = await fetch(GROQ_BASE, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ model: MODEL, messages, temperature: 0.7, max_tokens: maxTokens }),
-    })
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 25_000)
+    let res: Response
+    try {
+      res = await fetch(GROQ_BASE, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ model: MODEL, messages, temperature: 0.7, max_tokens: maxTokens }),
+        signal: controller.signal,
+      })
+    } finally {
+      clearTimeout(timeoutId)
+    }
     if (!res.ok) {
       const body = await res.text()
       throw new Error(`Groq API error ${res.status}: ${body}`)

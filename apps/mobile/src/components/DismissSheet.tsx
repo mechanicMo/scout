@@ -26,16 +26,16 @@ export function DismissSheet({ visible, title, onClose, onNotNow, onAlreadyWatch
 
       <View style={styles.sheet}>
         <View style={styles.handle} />
-        <Text style={styles.heading}>Not for you?</Text>
+        <Text style={styles.heading}>Passing on this?</Text>
         <Text style={styles.subtitle} numberOfLines={1}>{title}</Text>
 
         <TouchableOpacity style={styles.option} onPress={onNotNow}>
           <Text style={styles.optionText}>Not right now</Text>
-          <Text style={styles.optionMeta}>We'll resurface this in 30 days</Text>
+          <Text style={styles.optionMeta}>Remind me again in 30 days</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.option} onPress={onAlreadyWatched}>
-          <Text style={styles.optionText}>Already watched it</Text>
+          <Text style={styles.optionText}>Already seen this</Text>
           <Text style={styles.optionMeta}>Add a rating</Text>
         </TouchableOpacity>
 
@@ -63,17 +63,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#3a2010', alignSelf: 'center', marginBottom: 16,
   },
   heading: { color: '#fff1e6', fontSize: 17, fontWeight: '700', marginBottom: 2 },
-  subtitle: { color: '#7a5535', fontSize: 13, marginBottom: 20 },
+  subtitle: { color: '#a07050', fontSize: 13, marginBottom: 20 },
   option: {
     paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#2e1a0a',
   },
   optionLast: { borderBottomWidth: 0 },
   optionText: { color: '#fff1e6', fontSize: 15, fontWeight: '600', marginBottom: 2 },
   optionTextDanger: { color: '#e05020' },
-  optionMeta: { color: '#5a3520', fontSize: 12 },
+  optionMeta: { color: '#8a6040', fontSize: 12 },
   cancelButton: {
     marginTop: 12, paddingVertical: 14, alignItems: 'center',
     backgroundColor: '#2e1a0a', borderRadius: 12,
   },
-  cancelText: { color: '#7a5535', fontSize: 15, fontWeight: '600' },
+  cancelText: { color: '#a07050', fontSize: 15, fontWeight: '600' },
 })

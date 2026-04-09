@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import {
   View, Text, FlatList, Image, TouchableOpacity,
-  ActivityIndicator, StyleSheet,
+  ActivityIndicator, StyleSheet, RefreshControl, KeyboardAvoidingView, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'
@@ -35,11 +35,15 @@ export function PicksScreen() {
   const [ratingTarget, setRatingTarget] = useState<FeedTarget | null>(null)
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
   const [surveyDismissed, setSurveyDismissed] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const lastRefreshAt = useRef(0)
+  const REFRESH_COOLDOWN_MS = 60_000
 
   const utils = trpc.useUtils()
+  const usageQuery = trpc.picks.usage.useQuery()
   const aiRecsQuery = trpc.picks.aiRecs.useQuery(undefined, { retry: false })
   const trendingQuery = trpc.picks.trending.useQuery(undefined, {
-    enabled: aiRecsQuery.isFetched && aiRecsQuery.data?.length === 0,
+    enabled: aiRecsQuery.isFetched && (aiRecsQuery.data?.length === 0 || aiRecsQuery.isError),
   })
   const surveyQuery = trpc.survey.next.useQuery(undefined, { retry: false })
   const submitSurveyMutation = trpc.survey.submit.useMutation({
@@ -74,7 +78,10 @@ export function PicksScreen() {
     watchlistQuery.data?.filter(i => i.status === 'saved').map(i => `${i.tmdbId}-${i.mediaType}`) ?? []
   )
 
-  const filteredItems = baseItems.filter(i => !dismissedIds.has(`${i.tmdbId}-${i.mediaType}`))
+  const filteredItems = baseItems.filter(i => {
+    const key = `${i.tmdbId}-${i.mediaType}`
+    return !dismissedIds.has(key) && !watchlistedSet.has(key)
+  })
 
   // Insert survey card at position 2 (after 2 media items) if available
   const surveyCard = surveyQuery.data && !surveyDismissed
@@ -85,8 +92,24 @@ export function PicksScreen() {
     ? [...filteredItems.slice(0, 2), surveyCard, ...filteredItems.slice(2)]
     : filteredItems
 
-  const isLoading = aiRecsQuery.isLoading || (aiRecsQuery.data?.length === 0 && trendingQuery.isLoading)
+  const isLoading = aiRecsQuery.isLoading ||
+    (aiRecsQuery.isFetched && (aiRecsQuery.data?.length === 0 || aiRecsQuery.isError) && trendingQuery.isLoading)
   const isSparseFallback = aiRecsQuery.isFetched && (aiRecsQuery.data?.length ?? 0) === 0 && (trendingQuery.data?.length ?? 0) > 0
+
+  async function handleRefresh() {
+    const now = Date.now()
+    if (now - lastRefreshAt.current < REFRESH_COOLDOWN_MS) return
+    lastRefreshAt.current = now
+    setRefreshing(true)
+    try {
+      await Promise.allSettled([
+        aiRecsQuery.refetch(),
+        utils.watchlist.list.refetch(),
+      ])
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   function buildMediaPayload(item: FeedTarget) {
     return {
@@ -101,12 +124,15 @@ export function PicksScreen() {
 
   async function dismissWithStatus(target: FeedTarget, status: 'dismissed_not_now' | 'dismissed_never', resurfaceAfter?: string) {
     const key = `${target.tmdbId}-${target.mediaType}`
-    await addMutation.mutateAsync({ tmdbId: target.tmdbId, mediaType: target.mediaType, media: buildMediaPayload(target) })
-    const { data } = await utils.watchlist.list.refetch()
-    const item = data?.find(w => w.tmdbId === target.tmdbId && w.mediaType === target.mediaType)
-    if (item) updateStatusMutation.mutate({ id: item.id, status, resurfaceAfter })
-    setDismissedIds(prev => new Set([...prev, key]))
     setDismissTarget(null)
+    try {
+      await addMutation.mutateAsync({ tmdbId: target.tmdbId, mediaType: target.mediaType, media: buildMediaPayload(target) })
+      const { data } = await utils.watchlist.list.refetch()
+      const item = data?.find(w => w.tmdbId === target.tmdbId && w.mediaType === target.mediaType)
+      if (item) updateStatusMutation.mutate({ id: item.id, status, resurfaceAfter })
+    } finally {
+      setDismissedIds(prev => new Set([...prev, key]))
+    }
   }
 
   function handleDismissNotNow() {
@@ -144,15 +170,48 @@ export function PicksScreen() {
   const hasError = aiRecsQuery.isError && trendingQuery.isError
   if (hasError) return <View style={styles.centered}><Text style={styles.errorText}>Could not load picks.</Text></View>
 
+  const refineUsed = usageQuery.data?.refine.used ?? 0
+  const refineLimit = usageQuery.data?.refine.limit ?? 3
+  const refineLeft = refineLimit - refineUsed
+
   return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
     <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>Picks</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.header}>Picks</Text>
+        {usageQuery.data && (
+          <View style={styles.usageBadge}>
+            <Text style={styles.usageText}>
+              {refineLeft}/{refineLimit} refines left
+            </Text>
+            <View style={styles.usageBar}>
+              {Array.from({ length: refineLimit }).map((_, i) => (
+                <View
+                  key={i}
+                  style={[styles.usagePip, i < refineLeft ? styles.usagePipFilled : styles.usagePipEmpty]}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+      </View>
       <View style={styles.feedContainer}>
       <FlatList
         data={feedItems}
         keyExtractor={(item, i) => isSurveyItem(item) ? `survey-${i}` : `${item.tmdbId}-${item.mediaType}`}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#e8a020"
+            colors={['#e8a020']}
+          />
+        }
         ListHeaderComponent={isSparseFallback ? (
           <View style={styles.onboardingBanner}>
             <Text style={styles.onboardingTitle}>Scout is getting to know you</Text>
@@ -196,7 +255,7 @@ export function PicksScreen() {
                     style={styles.notForMeButton}
                     onPress={() => setDismissTarget({ tmdbId: item.tmdbId, mediaType: item.mediaType, title: item.title, genres: item.genres, posterPath: item.posterPath, year: item.year, overview: item.overview })}
                   >
-                    <Text style={styles.notForMeText}>Not for me</Text>
+                    <Text style={styles.notForMeText}>Pass</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.addButton, inWatchlist && styles.addButtonSaved]}
@@ -226,13 +285,21 @@ export function PicksScreen() {
         onClose={() => setRatingTarget(null)} onSubmit={handleRatingSubmit} isPending={addHistoryMutation.isPending}
       />
     </SafeAreaView>
+    </KeyboardAvoidingView>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#100a04' },
   centered: { flex: 1, backgroundColor: '#100a04', alignItems: 'center', justifyContent: 'center' },
-  header: { fontSize: 28, fontWeight: '800', color: '#fff1e6', paddingHorizontal: 16, paddingTop: 8, marginBottom: 12 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8, marginBottom: 12 },
+  header: { fontSize: 28, fontWeight: '800', color: '#fff1e6' },
+  usageBadge: { alignItems: 'flex-end', gap: 4 },
+  usageText: { fontSize: 10, color: '#7a5535', letterSpacing: 0.3 },
+  usageBar: { flexDirection: 'row', gap: 4 },
+  usagePip: { width: 20, height: 4, borderRadius: 2 },
+  usagePipFilled: { backgroundColor: '#e8a020' },
+  usagePipEmpty: { backgroundColor: '#2e1a0a' },
   list: { paddingHorizontal: 16, paddingBottom: 32 },
   card: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#1f1208' },
   poster: { width: 64, height: 96, borderRadius: 8, marginRight: 14 },

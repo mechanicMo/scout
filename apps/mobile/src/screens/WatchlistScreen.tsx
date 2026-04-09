@@ -173,7 +173,7 @@ export function WatchlistScreen() {
                         genres: item.genres ?? [],
                       })}
                     >
-                      <Text style={styles.notForMeText}>Not for me</Text>
+                      <Text style={styles.notForMeText}>Pass</Text>
                     </TouchableOpacity>
                   </View>
                 </View>

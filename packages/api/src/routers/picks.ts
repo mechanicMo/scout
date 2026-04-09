@@ -254,6 +254,29 @@ export const picksRouter = router({
       await logUsage(userId, 'refine')
       return enrichRecs(rawRecs, getTMDBToken())
     }),
+
+  usage: protectedProcedure
+    .query(async ({ ctx }) => {
+      const userId = ctx.userId
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+
+      const logs = await db
+        .select({ action: usageLogs.action })
+        .from(usageLogs)
+        .where(and(
+          eq(usageLogs.userId, userId),
+          gte(usageLogs.createdAt, todayStart)
+        ))
+
+      const aiRecsUsed = logs.filter(l => l.action === 'ai_recs').length
+      const refineUsed = logs.filter(l => l.action === 'refine').length
+
+      return {
+        aiRecs: { used: aiRecsUsed, limit: 1 },
+        refine: { used: refineUsed, limit: 3 },
+      }
+    }),
 })
 
 export type PicksRouter = typeof picksRouter
