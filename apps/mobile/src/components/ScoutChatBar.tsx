@@ -4,6 +4,7 @@ import {
   View, TextInput, TouchableOpacity, Text,
   ActivityIndicator, StyleSheet,
 } from 'react-native'
+import { colors, typography, spacing, radius, shadows } from '../theme'
 
 interface Props {
   onSubmit: (message: string) => void
@@ -25,7 +26,7 @@ export function ScoutChatBar({ onSubmit, isPending }: Props) {
       <TextInput
         style={styles.input}
         placeholder="Tell Scout what you're in the mood for..."
-        placeholderTextColor="#5a3520"
+        placeholderTextColor={colors.textMuted}
         value={text}
         onChangeText={setText}
         onSubmitEditing={handleSubmit}
@@ -39,7 +40,7 @@ export function ScoutChatBar({ onSubmit, isPending }: Props) {
         disabled={!text.trim() || isPending}
       >
         {isPending
-          ? <ActivityIndicator size="small" color="#100a04" />
+          ? <ActivityIndicator size="small" color={colors.bg} />
           : <Text style={styles.sendText}>→</Text>}
       </TouchableOpacity>
     </View>
@@ -50,32 +51,40 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#1f1208',
-    backgroundColor: '#100a04',
-    gap: 8,
+    borderTopColor: colors.border,
+    backgroundColor: colors.bg,
+    gap: spacing.md,
   },
   input: {
     flex: 1,
-    backgroundColor: '#1a0f06',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    color: '#fff1e6',
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    color: colors.text,
     fontSize: 14,
     borderWidth: 1,
-    borderColor: '#2e1a0a',
+    borderColor: colors.border,
   },
   sendButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#e8a020',
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: colors.gold,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.gold,
   },
-  sendButtonDisabled: { backgroundColor: '#2e1a0a' },
-  sendText: { color: '#100a04', fontSize: 16, fontWeight: '800' },
+  sendButtonDisabled: {
+    backgroundColor: colors.border,
+    borderColor: colors.border,
+  },
+  sendText: {
+    ...typography.button,
+    color: colors.bg,
+  },
 })

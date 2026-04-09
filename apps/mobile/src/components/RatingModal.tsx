@@ -3,6 +3,7 @@ import {
   Modal, View, Text, TouchableOpacity, TouchableWithoutFeedback, StyleSheet,
   ActivityIndicator,
 } from 'react-native'
+import { colors, typography, spacing, radius, shadows } from '../theme'
 
 interface Props {
   visible: boolean
@@ -86,7 +87,7 @@ export function RatingModal({ visible, title, tags, onClose, onSubmit, isPending
           disabled={score === 0 || isPending}
         >
           {isPending ? (
-            <ActivityIndicator size="small" color="#100a04" />
+            <ActivityIndicator size="small" color={colors.bg} />
           ) : (
             <Text style={styles.saveButtonText}>Save</Text>
           )}
@@ -99,35 +100,69 @@ export function RatingModal({ visible, title, tags, onClose, onSubmit, isPending
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
   sheet: {
-    backgroundColor: '#1a0f06', borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40,
+    backgroundColor: colors.surfaceHigh,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing['3xl'],
+    ...shadows.lg,
   },
   handle: {
-    width: 36, height: 4, borderRadius: 2,
-    backgroundColor: '#3a2010', alignSelf: 'center', marginBottom: 16,
+    width: 40,
+    height: 4,
+    borderRadius: radius.pill,
+    backgroundColor: colors.border,
+    alignSelf: 'center',
+    marginBottom: spacing.md,
   },
-  heading: { color: '#fff1e6', fontSize: 17, fontWeight: '700', marginBottom: 2 },
-  subtitle: { color: '#7a5535', fontSize: 13, marginBottom: 20 },
-  starsRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 4 },
-  starButton: { padding: 6 },
-  star: { fontSize: 36, color: '#2e1a0a' },
-  starFilled: { color: '#e8a020' },
-  starHint: { color: '#3a2010', textAlign: 'center', fontSize: 12, marginBottom: 16 },
-  tagsSection: { marginTop: 20, marginBottom: 8 },
-  tagsLabel: { color: '#7a5535', fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 },
-  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  heading: {
+    ...typography.heading,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  subtitle: { color: colors.textMuted, fontSize: 13, marginBottom: spacing.lg },
+  starsRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: spacing.xs },
+  starButton: { padding: spacing.xs },
+  star: { fontSize: 36, color: colors.border },
+  starFilled: { color: colors.gold },
+  starHint: {
+    color: colors.textMuted,
+    textAlign: 'center',
+    fontSize: 12,
+    marginBottom: spacing.lg,
+  },
+  tagsSection: { marginTop: spacing.lg, marginBottom: spacing.md },
+  tagsLabel: {
+    ...typography.label,
+    color: colors.textMuted,
+    marginBottom: spacing.md,
+  },
+  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   chip: {
-    paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: 16, borderWidth: 1, borderColor: '#2e1a0a',
-    backgroundColor: '#1a0f06',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  chipSelected: { backgroundColor: '#e8a020', borderColor: '#e8a020' },
-  chipText: { color: '#5a3520', fontSize: 13 },
-  chipTextSelected: { color: '#100a04', fontWeight: '700' },
+  chipSelected: { backgroundColor: colors.gold, borderColor: colors.gold },
+  chipText: { color: colors.textMuted, fontSize: 13 },
+  chipTextSelected: { color: colors.bg, fontWeight: '700' },
   saveButton: {
-    marginTop: 24, backgroundColor: '#e8a020',
-    borderRadius: 12, paddingVertical: 14, alignItems: 'center',
+    marginTop: spacing.xxl,
+    backgroundColor: colors.gold,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
   },
-  saveButtonDisabled: { backgroundColor: '#2e1a0a' },
-  saveButtonText: { color: '#100a04', fontSize: 16, fontWeight: '800' },
+  saveButtonDisabled: { backgroundColor: colors.border },
+  saveButtonText: {
+    ...typography.button,
+    color: colors.bg,
+  },
 })

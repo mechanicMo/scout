@@ -2,6 +2,7 @@ import React from 'react'
 import {
   Modal, View, Text, TouchableOpacity, TouchableWithoutFeedback, StyleSheet,
 } from 'react-native'
+import { colors, typography, spacing, radius, shadows } from '../theme'
 
 interface Props {
   visible: boolean
@@ -55,25 +56,61 @@ export function DismissSheet({ visible, title, onClose, onNotNow, onAlreadyWatch
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
   sheet: {
-    backgroundColor: '#1a0f06', borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 36,
+    backgroundColor: colors.surfaceHigh,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing['3xl'],
+    ...shadows.lg,
   },
   handle: {
-    width: 36, height: 4, borderRadius: 2,
-    backgroundColor: '#3a2010', alignSelf: 'center', marginBottom: 16,
+    width: 40,
+    height: 4,
+    borderRadius: radius.pill,
+    backgroundColor: colors.border,
+    alignSelf: 'center',
+    marginBottom: spacing.md,
   },
-  heading: { color: '#fff1e6', fontSize: 17, fontWeight: '700', marginBottom: 2 },
-  subtitle: { color: '#a07050', fontSize: 13, marginBottom: 20 },
+  heading: {
+    ...typography.heading,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  subtitle: {
+    color: colors.textSoft,
+    fontSize: 13,
+    marginBottom: spacing.lg,
+  },
   option: {
-    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#2e1a0a',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   optionLast: { borderBottomWidth: 0 },
-  optionText: { color: '#fff1e6', fontSize: 15, fontWeight: '600', marginBottom: 2 },
-  optionTextDanger: { color: '#e05020' },
-  optionMeta: { color: '#8a6040', fontSize: 12 },
-  cancelButton: {
-    marginTop: 12, paddingVertical: 14, alignItems: 'center',
-    backgroundColor: '#2e1a0a', borderRadius: 12,
+  optionText: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
   },
-  cancelText: { color: '#a07050', fontSize: 15, fontWeight: '600' },
+  optionTextDanger: { color: colors.error },
+  optionMeta: { color: colors.textMuted, fontSize: 12 },
+  cancelButton: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  cancelText: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '600',
+  },
 })

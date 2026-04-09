@@ -4,6 +4,7 @@ import {
   TextInput, ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { colors, typography, spacing, radius, shadows } from '../theme'
 
 type Props = {
   visible: boolean
@@ -80,7 +81,7 @@ export function WatchingStatusModal({
                   onChangeText={setSeason}
                   keyboardType="number-pad"
                   placeholder="1"
-                  placeholderTextColor="#5a3520"
+                  placeholderTextColor={colors.textMuted}
                   editable={!isPending}
                 />
               </View>
@@ -92,7 +93,7 @@ export function WatchingStatusModal({
                   onChangeText={setEpisode}
                   keyboardType="number-pad"
                   placeholder="1"
-                  placeholderTextColor="#5a3520"
+                  placeholderTextColor={colors.textMuted}
                   editable={!isPending}
                 />
               </View>
@@ -113,7 +114,7 @@ export function WatchingStatusModal({
               disabled={isPending}
             >
               {isPending ? (
-                <ActivityIndicator color="#100a04" size="small" />
+                <ActivityIndicator color={colors.bg} size="small" />
               ) : (
                 <Text style={styles.confirmButtonText}>Done</Text>
               )}
@@ -133,96 +134,102 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   container: {
-    backgroundColor: '#1f1208',
-    borderRadius: 16,
-    padding: 24,
+    backgroundColor: colors.surfaceHigh,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.xxl,
     width: '85%',
     marginHorizontal: '7.5%',
+    ...shadows.lg,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff1e6',
-    marginBottom: 8,
+    ...typography.heading,
+    color: colors.text,
+    marginBottom: spacing.md,
   },
   subtitle: {
+    color: colors.textMuted,
     fontSize: 14,
-    color: '#7a5535',
-    marginBottom: 20,
+    marginBottom: spacing.lg,
   },
   options: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
   },
   option: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#2e1a0a',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     alignItems: 'center',
   },
   optionActive: {
-    backgroundColor: '#e8a020',
-    borderColor: '#e8a020',
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
   },
   optionText: {
-    color: '#5a3520',
+    color: colors.textMuted,
     fontSize: 13,
     fontWeight: '600',
   },
   optionTextActive: {
-    color: '#100a04',
+    color: colors.bg,
+    fontWeight: '700',
   },
   seasonEpisodeContainer: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
   },
   inputGroup: {
     flex: 1,
   },
   label: {
-    color: '#7a5535',
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 4,
+    ...typography.label,
+    color: colors.textMuted,
+    marginBottom: spacing.xs,
   },
   input: {
-    backgroundColor: '#100a04',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#2e1a0a',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    color: '#fff1e6',
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    color: colors.text,
     fontSize: 14,
   },
   buttons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
   },
   button: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
     alignItems: 'center',
+    borderWidth: 1,
   },
   cancelButton: {
-    backgroundColor: '#2e1a0a',
+    backgroundColor: colors.surfaceRaised,
+    borderColor: colors.border,
   },
   cancelButtonText: {
-    color: '#5a3520',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '600',
   },
   confirmButton: {
-    backgroundColor: '#e8a020',
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
   },
   confirmButtonText: {
-    color: '#100a04',
-    fontSize: 14,
-    fontWeight: '700',
+    ...typography.button,
+    color: colors.bg,
   },
 })
