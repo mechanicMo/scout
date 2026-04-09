@@ -8,6 +8,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { trpc } from '../lib/trpc'
 import type { MediaItem } from '@scout/shared'
 import type { RootStackParamList } from '../navigation/MainNavigator'
+import { colors, typography, spacing, radius, shadows } from '../theme'
 
 type Nav = NativeStackNavigationProp<RootStackParamList>
 
@@ -139,31 +140,50 @@ export function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#100a04', paddingTop: 56 },
-  header: { fontSize: 28, fontWeight: '800', color: '#fff1e6', paddingHorizontal: 16, marginBottom: 12 },
+  container: { flex: 1, backgroundColor: colors.bg, paddingTop: 56 },
+  header: { ...typography.heading, paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
   input: {
-    marginHorizontal: 16, backgroundColor: '#1f1208', borderWidth: 1,
-    borderColor: '#2e1a0a', borderRadius: 10, padding: 12,
-    color: '#fff1e6', fontSize: 15, marginBottom: 8,
+    marginHorizontal: spacing.lg,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    color: colors.text,
+    fontSize: 15,
+    marginBottom: spacing.xs,
+    placeholderTextColor: colors.textMuted,
   },
-  spinner: { marginTop: 24 },
-  emptyText: { color: '#3a2010', textAlign: 'center', marginTop: 40, fontSize: 15 },
-  errorText: { color: '#e05020', textAlign: 'center', marginTop: 16, fontSize: 13, paddingHorizontal: 16 },
-  list: { paddingHorizontal: 16, paddingBottom: 24 },
+  spinner: { marginTop: spacing.lg },
+  emptyText: { color: colors.textDim, textAlign: 'center', marginTop: 40, fontSize: 15 },
+  errorText: { color: colors.error, textAlign: 'center', marginTop: spacing.sm, fontSize: 13, paddingHorizontal: spacing.lg },
+  list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
   card: {
-    flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
-    borderBottomWidth: 1, borderBottomColor: '#1f1208',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
+    marginBottom: spacing.xs,
+    borderRadius: radius.md,
+    ...shadows.md,
   },
-  poster: { width: 48, height: 72, borderRadius: 6, marginRight: 12 },
-  posterFallback: { backgroundColor: '#2e1a0a' },
-  info: { flex: 1, marginRight: 12 },
-  title: { color: '#fff1e6', fontSize: 14, fontWeight: '600', marginBottom: 2 },
-  meta: { color: '#7a5535', fontSize: 12, marginBottom: 2 },
-  genres: { color: '#5a3520', fontSize: 11 },
+  poster: { width: 48, height: 72, borderRadius: radius.sm, marginRight: spacing.md },
+  posterFallback: { backgroundColor: colors.border },
+  info: { flex: 1, marginRight: spacing.md },
+  title: { ...typography.subtitle, color: colors.text, marginBottom: 2 },
+  meta: { ...typography.caption, color: colors.textMuted, marginBottom: 2 },
+  genres: { ...typography.caption, color: colors.textMuted },
   addButton: {
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: '#e8a020', alignItems: 'center', justifyContent: 'center',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  addButtonSaved: { backgroundColor: '#2e1a0a' },
-  addButtonText: { color: '#100a04', fontSize: 18, fontWeight: '800', lineHeight: 20 },
+  addButtonSaved: { backgroundColor: colors.border },
+  addButtonText: { color: colors.bg, fontSize: 18, fontWeight: '800', lineHeight: 20 },
 })

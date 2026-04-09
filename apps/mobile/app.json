@@ -10,7 +10,8 @@
       "backgroundColor": "#100a04"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.mechanicmo.scout"
     },
     "android": {
       "adaptiveIcon": {
