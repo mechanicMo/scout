@@ -1,5 +1,6 @@
 import React from 'react'
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native'
+import { colors, spacing, shadows, radius } from '../theme'
 
 interface Props {
   question: string
@@ -20,7 +21,7 @@ export function SurveyCard({ question, options, onAnswer, onSkip, isPending }: P
       </View>
       <Text style={styles.question}>{question}</Text>
       {isPending ? (
-        <ActivityIndicator color="#e8a020" style={styles.spinner} />
+        <ActivityIndicator color={colors.gold} style={styles.spinner} />
       ) : (
         <View style={styles.options}>
           {options.map(option => (
@@ -40,50 +41,51 @@ export function SurveyCard({ question, options, onAnswer, onSkip, isPending }: P
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#1a0f06',
-    borderRadius: 12,
+    ...shadows.md,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#3a2010',
-    padding: 16,
-    marginBottom: 16,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: spacing.sm,
   },
   label: {
-    color: '#e8a020',
+    color: colors.gold,
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.5,
   },
   skip: {
-    color: '#5a3520',
+    color: colors.textDim,
     fontSize: 12,
   },
   question: {
-    color: '#fff1e6',
+    color: colors.text,
     fontSize: 15,
     fontWeight: '700',
     lineHeight: 22,
-    marginBottom: 14,
+    marginBottom: spacing.md,
   },
   options: {
-    gap: 8,
+    gap: spacing.xs,
   },
   option: {
     paddingVertical: 10,
     paddingHorizontal: 14,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: '#2e1a0a',
-    backgroundColor: '#0e0905',
+    borderColor: colors.border,
+    backgroundColor: colors.bg,
   },
   optionText: {
-    color: '#c8a87a',
+    color: colors.textSoft,
     fontSize: 14,
   },
-  spinner: { marginTop: 8 },
+  spinner: { marginTop: spacing.xs },
 })
