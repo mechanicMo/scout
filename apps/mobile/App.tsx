@@ -10,6 +10,7 @@ import {
   Outfit_700Bold,
 } from '@expo-google-fonts/outfit'
 import { RootNavigator } from './src/navigation/RootNavigator'
+import colors from './src/theme/colors'
 
 SplashScreen.preventAutoHideAsync()
 
@@ -38,5 +39,5 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#100a04' },
+  root: { flex: 1, backgroundColor: colors.bg },
 })
