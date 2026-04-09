@@ -5,6 +5,7 @@ import {
   Platform,
   StyleSheet,
 } from 'react-native'
+import { colors, spacing } from '../theme'
 
 interface ScreenContainerProps {
   children: React.ReactNode
@@ -30,7 +31,7 @@ export function ScreenContainer({ children, centered = false }: ScreenContainerP
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#100a04' },
-  scroll: { flexGrow: 1, padding: 32 },
+  flex: { flex: 1, backgroundColor: colors.bg },
+  scroll: { flexGrow: 1, padding: spacing['3xl'] },
   centered: { justifyContent: 'center' },
 })
