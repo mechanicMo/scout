@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react'
 import {
   View, Text, FlatList, Image, TouchableOpacity,
   ActivityIndicator, StyleSheet, RefreshControl, KeyboardAvoidingView, Platform,
+  Animated, PanResponder,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'
@@ -17,6 +18,99 @@ import { colors, typography, spacing, radius, shadows } from '../theme'
 
 type Nav = NativeStackNavigationProp<RootStackParamList>
 const POSTER_BASE = 'https://image.tmdb.org/t/p/w185'
+
+function SwipeableCard({
+  children,
+  onSwipeLeft,
+  onSwipeRight,
+  style,
+}: {
+  children: React.ReactNode
+  onSwipeLeft: () => void
+  onSwipeRight: () => void
+  style?: object
+}) {
+  const translateX = useRef(new Animated.Value(0)).current
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, { dx, dy }) =>
+        Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy),
+      onPanResponderMove: Animated.event([null, { dx: translateX }], { useNativeDriver: false }),
+      onPanResponderRelease: (_, { dx, vx }) => {
+        if (dx < -80 || vx < -0.5) {
+          Animated.timing(translateX, { toValue: -500, duration: 200, useNativeDriver: false }).start(() => {
+            translateX.setValue(0)
+            onSwipeLeft()
+          })
+        } else if (dx > 80 || vx > 0.5) {
+          Animated.timing(translateX, { toValue: 500, duration: 200, useNativeDriver: false }).start(() => {
+            translateX.setValue(0)
+            onSwipeRight()
+          })
+        } else {
+          Animated.spring(translateX, { toValue: 0, useNativeDriver: false }).start()
+        }
+      },
+    })
+  ).current
+
+  // Fade in action backgrounds as card moves
+  const addBgOpacity = translateX.interpolate({ inputRange: [0, 20], outputRange: [0, 1], extrapolate: 'clamp' })
+  const passBgOpacity = translateX.interpolate({ inputRange: [-20, 0], outputRange: [1, 0], extrapolate: 'clamp' })
+  // Scale up icon/label when past trigger threshold
+  const addScale = translateX.interpolate({ inputRange: [0, 80], outputRange: [0.8, 1.1], extrapolate: 'clamp' })
+  const passScale = translateX.interpolate({ inputRange: [-80, 0], outputRange: [1.1, 0.8], extrapolate: 'clamp' })
+
+  return (
+    <View style={style}>
+      {/* Gold background — right swipe = Add */}
+      <Animated.View style={[StyleSheet.absoluteFillObject, swipeStyles.addBg, { opacity: addBgOpacity }]}>
+        <Animated.Text style={[swipeStyles.addLabel, { transform: [{ scale: addScale }] }]}>
+          + Add
+        </Animated.Text>
+      </Animated.View>
+
+      {/* Muted background — left swipe = Pass */}
+      <Animated.View style={[StyleSheet.absoluteFillObject, swipeStyles.passBg, { opacity: passBgOpacity }]}>
+        <Animated.Text style={[swipeStyles.passLabel, { transform: [{ scale: passScale }] }]}>
+          Pass ✕
+        </Animated.Text>
+      </Animated.View>
+
+      <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
+        {children}
+      </Animated.View>
+    </View>
+  )
+}
+
+const swipeStyles = StyleSheet.create({
+  addBg: {
+    backgroundColor: colors.gold,
+    justifyContent: 'center',
+    paddingLeft: spacing.lg + 10,
+    borderRadius: radius.md,
+  },
+  addLabel: {
+    color: colors.bg,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  passBg: {
+    backgroundColor: '#5a0a0a',
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingRight: spacing.lg + 10,
+    borderRadius: radius.md,
+  },
+  passLabel: {
+    color: '#ffaaaa',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+})
 
 type FeedTarget = {
   tmdbId: number; mediaType: 'movie' | 'tv'; title: string
@@ -180,7 +274,7 @@ export function PicksScreen() {
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.headerRow}>
         <Text style={styles.header}>Picks</Text>
         {usageQuery.data && (
@@ -236,38 +330,45 @@ export function PicksScreen() {
           const inWatchlist = watchlistedSet.has(key)
           const isAdding = addMutation.isPending && addMutation.variables?.tmdbId === item.tmdbId && addMutation.variables?.mediaType === item.mediaType
 
+          const dismissPayload = { tmdbId: item.tmdbId, mediaType: item.mediaType, title: item.title, genres: item.genres, posterPath: item.posterPath, year: item.year, overview: item.overview }
           return (
-            <TouchableOpacity
+            <SwipeableCard
               style={styles.card}
-              onPress={() => navigation.navigate('MediaDetail', { tmdbId: item.tmdbId, mediaType: item.mediaType })}
-              activeOpacity={0.75}
+              onSwipeLeft={() => setDismissTarget(dismissPayload)}
+              onSwipeRight={() => { if (!inWatchlist) handleAdd(item) }}
             >
-              {item.posterPath ? (
-                <Image source={{ uri: `${POSTER_BASE}${item.posterPath}` }} style={styles.poster} />
-              ) : (
-                <View style={[styles.poster, styles.posterFallback]} />
-              )}
-              <View style={styles.info}>
-                <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
-                <Text style={styles.meta}>{[item.year, item.mediaType === 'tv' ? 'TV' : 'Movie'].filter(Boolean).join(' · ')}</Text>
-                {item.overview.length > 0 && <Text style={styles.overview} numberOfLines={2}>{item.overview}</Text>}
-                <View style={styles.actions}>
-                  <TouchableOpacity
-                    style={styles.notForMeButton}
-                    onPress={() => setDismissTarget({ tmdbId: item.tmdbId, mediaType: item.mediaType, title: item.title, genres: item.genres, posterPath: item.posterPath, year: item.year, overview: item.overview })}
-                  >
-                    <Text style={styles.notForMeText}>Pass</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.addButton, inWatchlist && styles.addButtonSaved]}
-                    onPress={() => { if (!inWatchlist) handleAdd(item) }}
-                    disabled={inWatchlist || isAdding}
-                  >
-                    {isAdding ? <ActivityIndicator size="small" color="#100a04" /> : <Text style={styles.addButtonText}>{inWatchlist ? '✓' : '+'}</Text>}
-                  </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.cardInner}
+                onPress={() => navigation.navigate('MediaDetail', { tmdbId: item.tmdbId, mediaType: item.mediaType })}
+                activeOpacity={0.75}
+              >
+                {item.posterPath ? (
+                  <Image source={{ uri: `${POSTER_BASE}${item.posterPath}` }} style={styles.poster} />
+                ) : (
+                  <View style={[styles.poster, styles.posterFallback]} />
+                )}
+                <View style={styles.info}>
+                  <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+                  <Text style={styles.meta}>{[item.year, item.mediaType === 'tv' ? 'TV' : 'Movie'].filter(Boolean).join(' · ')}</Text>
+                  {item.overview.length > 0 && <Text style={styles.overview} numberOfLines={2}>{item.overview}</Text>}
+                  <View style={styles.actions}>
+                    <TouchableOpacity
+                      style={styles.notForMeButton}
+                      onPress={() => setDismissTarget(dismissPayload)}
+                    >
+                      <Text style={styles.notForMeText}>Pass</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.addButton, inWatchlist && styles.addButtonSaved]}
+                      onPress={() => { if (!inWatchlist) handleAdd(item) }}
+                      disabled={inWatchlist || isAdding}
+                    >
+                      {isAdding ? <ActivityIndicator size="small" color="#100a04" /> : <Text style={styles.addButtonText}>{inWatchlist ? '✓' : '+'}</Text>}
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </SwipeableCard>
           )
         }}
       />
@@ -303,16 +404,17 @@ const styles = StyleSheet.create({
   usagePipEmpty: { backgroundColor: colors.border },
   list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
   card: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
     backgroundColor: colors.surfaceRaised,
     marginBottom: spacing.xs,
     borderRadius: radius.md,
     ...shadows.md,
+    overflow: 'hidden',
+  },
+  cardInner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
   },
   poster: { width: 64, height: 96, borderRadius: radius.sm, marginRight: spacing.md },
   posterFallback: { backgroundColor: colors.border },
@@ -320,8 +422,8 @@ const styles = StyleSheet.create({
   title: { ...typography.title, color: colors.text, marginBottom: 2 },
   meta: { ...typography.caption, color: colors.textMuted, marginBottom: spacing.xs },
   overview: { ...typography.body, color: colors.textSoft, marginBottom: spacing.md },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.xs },
-  notForMeButton: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.xs },
+  notForMeButton: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border },
   notForMeText: { color: colors.textMuted, fontSize: 12 },
   addButton: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.gold, alignItems: 'center', justifyContent: 'center' },
   addButtonSaved: { backgroundColor: colors.border },

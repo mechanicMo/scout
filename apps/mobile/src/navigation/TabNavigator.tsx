@@ -1,6 +1,6 @@
 import React from 'react'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
-import { Text, View, StyleSheet } from 'react-native'
+import { Text } from 'react-native'
 import { PicksScreen } from '../screens/PicksScreen'
 import { SearchScreen } from '../screens/SearchScreen'
 import { WatchlistScreen } from '../screens/WatchlistScreen'
@@ -13,74 +13,29 @@ const ICONS: Record<string, string> = {
   Picks: '✦', Search: '⌕', Watchlist: '☰', Profile: '◎',
 }
 
-function TabIcon({ label, focused }: { label: string; focused: boolean }) {
+function icon(label: string, focused: boolean) {
   return (
-    <View style={styles.iconWrapper}>
-      {focused && <View style={styles.indicator} />}
-      <Text style={[styles.icon, focused ? styles.iconFocused : styles.iconUnfocused]}>
-        {ICONS[label]}
-      </Text>
-    </View>
+    <Text style={{ fontSize: 20, color: focused ? colors.gold : colors.textDim }}>
+      {ICONS[label]}
+    </Text>
   )
 }
 
 export function TabNavigator() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
+      screenOptions={{
         headerShown: false,
-        tabBarShowLabel: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: { backgroundColor: colors.bg, borderTopColor: colors.border },
         tabBarActiveTintColor: colors.gold,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
-      })}
+        tabBarInactiveTintColor: colors.textDim,
+        tabBarLabelStyle: { fontSize: 10, marginBottom: 4 },
+      }}
     >
-      <Tab.Screen name="Picks" component={PicksScreen} />
-      <Tab.Screen name="Search" component={SearchScreen} />
-      <Tab.Screen name="Watchlist" component={WatchlistScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Picks" component={PicksScreen} options={{ tabBarIcon: ({ focused }) => icon('Picks', focused) }} />
+      <Tab.Screen name="Search" component={SearchScreen} options={{ tabBarIcon: ({ focused }) => icon('Search', focused) }} />
+      <Tab.Screen name="Watchlist" component={WatchlistScreen} options={{ tabBarIcon: ({ focused }) => icon('Watchlist', focused) }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarIcon: ({ focused }) => icon('Profile', focused) }} />
     </Tab.Navigator>
   )
 }
-
-const styles = StyleSheet.create({
-  tabBar: {
-    backgroundColor: colors.surfaceHigh,
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    height: 56,
-    paddingBottom: 4,
-    paddingTop: 8,
-  },
-
-  iconWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 24,
-    height: 24,
-    position: 'relative',
-  },
-
-  indicator: {
-    position: 'absolute',
-    top: -8,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.gold,
-  },
-
-  icon: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-
-  iconFocused: {
-    color: colors.gold,
-  },
-
-  iconUnfocused: {
-    color: colors.textMuted,
-  },
-})

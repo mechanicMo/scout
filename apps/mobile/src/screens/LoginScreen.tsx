@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native'
+import { Text, TextInput, TouchableOpacity, StyleSheet, Alert, View } from 'react-native'
 import { supabase } from '../lib/supabase'
 import { ScreenContainer } from '../components/ScreenContainer'
 import { colors, typography, spacing, radius } from '../theme'
@@ -7,6 +7,7 @@ import { colors, typography, spacing, radius } from '../theme'
 export function LoginScreen({ onNavigateSignUp }: { onNavigateSignUp: () => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
 
   async function handleLogin() {
@@ -29,14 +30,22 @@ export function LoginScreen({ onNavigateSignUp }: { onNavigateSignUp: () => void
         autoCapitalize="none"
         keyboardType="email-address"
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        placeholderTextColor="#5a3520"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
+      <View style={styles.passwordContainer}>
+        <TextInput
+          style={styles.passwordInput}
+          placeholder="Password"
+          placeholderTextColor="#5a3520"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry={!showPassword}
+        />
+        <TouchableOpacity
+          style={styles.showButton}
+          onPress={() => setShowPassword(!showPassword)}
+        >
+          <Text style={styles.showButtonText}>{showPassword ? 'hide' : 'show'}</Text>
+        </TouchableOpacity>
+      </View>
       <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
         <Text style={styles.buttonText}>{loading ? 'Signing in...' : 'Sign in'}</Text>
       </TouchableOpacity>
@@ -66,6 +75,33 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.md,
     ...typography.body,
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    position: 'relative',
+  },
+  passwordInput: {
+    flex: 1,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingRight: spacing['3xl'] + spacing.lg,
+    color: colors.text,
+    ...typography.body,
+  },
+  showButton: {
+    position: 'absolute',
+    right: spacing.md,
+    padding: spacing.xs,
+  },
+  showButtonText: {
+    ...typography.caption,
+    color: colors.textMuted,
   },
   button: {
     backgroundColor: colors.gold,

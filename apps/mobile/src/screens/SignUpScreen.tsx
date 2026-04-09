@@ -8,6 +8,7 @@ export function SignUpScreen({ onNavigateLogin }: { onNavigateLogin: () => void 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
 
@@ -61,14 +62,22 @@ export function SignUpScreen({ onNavigateLogin }: { onNavigateLogin: () => void 
         autoCapitalize="none"
         keyboardType="email-address"
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        placeholderTextColor="#5a3520"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
+      <View style={styles.passwordContainer}>
+        <TextInput
+          style={styles.passwordInput}
+          placeholder="Password"
+          placeholderTextColor="#5a3520"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry={!showPassword}
+        />
+        <TouchableOpacity
+          style={styles.showButton}
+          onPress={() => setShowPassword(!showPassword)}
+        >
+          <Text style={styles.showButtonText}>{showPassword ? 'hide' : 'show'}</Text>
+        </TouchableOpacity>
+      </View>
       <TouchableOpacity style={styles.button} onPress={handleSignUp} disabled={loading}>
         <Text style={styles.buttonText}>{loading ? 'Creating account...' : 'Create account'}</Text>
       </TouchableOpacity>
@@ -98,6 +107,33 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.md,
     ...typography.body,
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    position: 'relative',
+  },
+  passwordInput: {
+    flex: 1,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingRight: spacing['3xl'] + spacing.lg,
+    color: colors.text,
+    ...typography.body,
+  },
+  showButton: {
+    position: 'absolute',
+    right: spacing.md,
+    padding: spacing.xs,
+  },
+  showButtonText: {
+    ...typography.caption,
+    color: colors.textMuted,
   },
   button: {
     backgroundColor: colors.gold,
