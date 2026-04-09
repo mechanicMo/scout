@@ -9,6 +9,7 @@ import { SignUpScreen } from '../screens/SignUpScreen'
 import { useAuthStore } from '../store/authStore'
 import { supabase } from '../lib/supabase'
 import { trpc, createTRPCClient } from '../lib/trpc'
+import colors from '../theme/colors'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,6 +19,19 @@ const queryClient = new QueryClient({
   },
 })
 const trpcClient = createTRPCClient()
+
+const scoutNavTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background:   colors.bg,
+    card:         colors.surfaceRaised,
+    primary:      colors.gold,
+    text:         colors.text,
+    border:       colors.border,
+    notification: colors.gold,
+  },
+}
 
 const asyncStoragePersister = {
   persistClient: async (client: unknown) => {
@@ -77,7 +91,7 @@ function AppContent() {
   }, [])
 
   return (
-    <NavigationContainer theme={{ ...DarkTheme, colors: { ...DarkTheme.colors, background: '#100a04', card: '#1f1208', primary: '#e8a020', text: '#fff1e6', border: '#2e1a0a', notification: '#e8a020' } }}>
+    <NavigationContainer theme={scoutNavTheme}>
       {session ? (
         <MainNavigator />
       ) : authScreen === 'login' ? (
