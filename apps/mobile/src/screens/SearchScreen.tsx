@@ -152,7 +152,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 15,
     marginBottom: spacing.xs,
-    placeholderTextColor: colors.textMuted,
   },
   spinner: { marginTop: spacing.lg },
   emptyText: { color: colors.textDim, textAlign: 'center', marginTop: 40, fontSize: 15 },
