@@ -1,13 +1,17 @@
 import React, { useState } from 'react'
 import {
   View, Text, Image, ScrollView, TouchableOpacity,
-  ActivityIndicator, StyleSheet,
+  ActivityIndicator, StyleSheet, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigation/MainNavigator'
+import { LinearGradient } from 'expo-linear-gradient'
 import { trpc } from '../lib/trpc'
 import { WatchingStatusModal } from '../components/WatchingStatusModal'
+import colors from '../theme/colors'
+import { typography } from '../theme/typography'
+import { spacing, radius, shadows } from '../theme/spacing'
 
 const POSTER_BASE = 'https://image.tmdb.org/t/p/w342'
 const BACKDROP_BASE = 'https://image.tmdb.org/t/p/w780'
@@ -93,7 +97,7 @@ export function MediaDetailScreen({ route, navigation }: Props) {
   if (mediaQuery.isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator color="#e8a020" size="large" />
+        <ActivityIndicator color={colors.gold} size="large" />
       </View>
     )
   }
@@ -120,12 +124,20 @@ export function MediaDetailScreen({ route, navigation }: Props) {
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* Backdrop */}
+        {/* Backdrop with gradient fade */}
         {media.backdropPath ? (
-          <Image
-            source={{ uri: `${BACKDROP_BASE}${media.backdropPath}` }}
-            style={styles.backdrop}
-          />
+          <View style={styles.backdropContainer}>
+            <Image
+              source={{ uri: `${BACKDROP_BASE}${media.backdropPath}` }}
+              style={styles.backdrop}
+            />
+            <LinearGradient
+              colors={['transparent', colors.bg]}
+              style={styles.backdropFade}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+            />
+          </View>
         ) : null}
 
         {/* Hero row */}
@@ -192,7 +204,7 @@ export function MediaDetailScreen({ route, navigation }: Props) {
               disabled={isTogglingWatchlist || watchlistQuery.isLoading}
             >
               {isTogglingWatchlist ? (
-                <ActivityIndicator size="small" color="#100a04" />
+                <ActivityIndicator size="small" color={colors.bg} />
               ) : (
                 <Text style={[styles.watchlistButtonText, inWatchlist && styles.watchlistButtonTextSaved]}>
                   {inWatchlist ? '✓ In Watchlist' : '+ Add to Watchlist'}
@@ -280,54 +292,81 @@ export function MediaDetailScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#100a04' },
-  loadingContainer: { flex: 1, backgroundColor: '#100a04', alignItems: 'center', justifyContent: 'center' },
-  backButton: { paddingHorizontal: 16, paddingVertical: 12 },
-  backButtonText: { color: '#e8a020', fontSize: 15, fontWeight: '600' },
-  backdrop: { width: '100%', height: 200, resizeMode: 'cover', marginBottom: 0 },
-  scroll: { paddingBottom: 40 },
-  hero: { flexDirection: 'row', gap: 14, marginBottom: 24, paddingHorizontal: 16, marginTop: 16 },
-  poster: { width: 110, height: 165, borderRadius: 8 },
-  posterFallback: { backgroundColor: '#2e1a0a' },
-  heroInfo: { flex: 1, justifyContent: 'flex-start', gap: 4 },
-  title: { color: '#fff1e6', fontSize: 18, fontWeight: '800', lineHeight: 24 },
-  tagline: { color: '#7a5535', fontSize: 12, fontStyle: 'italic' },
-  meta: { color: '#7a5535', fontSize: 11 },
-  badgeRow: { flexDirection: 'row', gap: 6, marginTop: 2, alignItems: 'center' },
+  container: { flex: 1, backgroundColor: colors.bg },
+  loadingContainer: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+
+  backButton: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  backButtonText: { ...typography.subtitle, color: colors.gold },
+
+  backdropContainer: { position: 'relative' },
+  backdrop: { width: '100%', height: 210, resizeMode: 'cover' },
+  backdropFade: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 80 },
+
+  scroll: { paddingBottom: spacing['3xl'] },
+
+  hero: { flexDirection: 'row', gap: spacing.lg, marginBottom: spacing.xxl, paddingHorizontal: spacing.lg, marginTop: spacing.lg },
+  poster: { width: 110, height: 165, borderRadius: radius.lg, ...shadows.md },
+  posterFallback: { backgroundColor: colors.surfaceHigh },
+  heroInfo: { flex: 1, justifyContent: 'flex-start', gap: spacing.xs },
+
+  title: { ...typography.heading, flexShrink: 1 },
+  tagline: { ...typography.caption, fontStyle: 'italic', color: colors.textMuted },
+  meta: { ...typography.caption },
+  genres: { ...typography.caption, color: colors.textDim },
+  network: { ...typography.caption, ...({ fontFamily: 'Outfit_600SemiBold' } as any) },
+
+  badgeRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xxs, alignItems: 'center' },
   scoreBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 2,
-    backgroundColor: '#2a1800', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
+    flexDirection: 'row', alignItems: 'center', gap: spacing.xxs,
+    backgroundColor: colors.goldSubtle,
+    borderWidth: 1,
+    borderColor: colors.goldBorder,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
   },
-  scoreStar: { color: '#e8a020', fontSize: 11 },
-  scoreText: { color: '#e8a020', fontSize: 11, fontWeight: '700' },
+  scoreStar: { ...typography.caption, color: colors.gold },
+  scoreText: { ...typography.micro, color: colors.gold, fontFamily: 'Outfit_700Bold' },
   ratingBadge: {
-    borderWidth: 1, borderColor: '#3a2010', borderRadius: 4,
-    paddingHorizontal: 5, paddingVertical: 1,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.tight, paddingHorizontal: spacing.xs, paddingVertical: spacing.xxs,
   },
-  ratingText: { color: '#7a5535', fontSize: 10, fontWeight: '600' },
-  genres: { color: '#5a3520', fontSize: 11 },
-  network: { color: '#7a5535', fontSize: 11, fontWeight: '600' },
+  ratingText: { ...typography.micro, color: colors.textMuted },
+
   watchlistButton: {
-    marginTop: 8, backgroundColor: '#e8a020',
-    borderRadius: 8, paddingVertical: 8, paddingHorizontal: 14,
+    marginTop: spacing.sm,
+    backgroundColor: colors.gold,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
     alignItems: 'center',
+    ...shadows.md,
   },
-  watchlistButtonSaved: { backgroundColor: '#2e1a0a', borderWidth: 1, borderColor: '#3a2010' },
-  watchlistButtonText: { color: '#100a04', fontSize: 13, fontWeight: '700' },
-  watchlistButtonTextSaved: { color: '#7a5535' },
-  section: { marginBottom: 24, paddingHorizontal: 16 },
-  sectionLabel: { color: '#7a5535', fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 },
-  overview: { color: '#c8a87a', fontSize: 14, lineHeight: 21 },
-  bodyText: { color: '#c8a87a', fontSize: 14 },
-  castScroll: { marginHorizontal: -4 },
-  castItem: { width: 72, marginHorizontal: 4 },
-  castPhoto: { width: 64, height: 96, borderRadius: 8, marginBottom: 6 },
-  castPhotoFallback: { backgroundColor: '#2e1a0a' },
-  castName: { color: '#fff1e6', fontSize: 11, fontWeight: '600', lineHeight: 14 },
-  castCharacter: { color: '#5a3520', fontSize: 10, lineHeight: 13, marginTop: 2 },
-  providerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  watchlistButtonSaved: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...Platform.select({ ios: { shadowOpacity: 0 }, android: { elevation: 0 }, default: {} }),
+  },
+  watchlistButtonText: { ...typography.button, color: colors.bg },
+  watchlistButtonTextSaved: { ...typography.button, color: colors.textMuted },
+
+  section: { marginBottom: spacing.xxl, paddingHorizontal: spacing.lg },
+  sectionLabel: { ...typography.label, marginBottom: spacing.sm },
+  overview: { ...typography.body },
+  bodyText: { ...typography.body },
+
+  castScroll: { marginHorizontal: -spacing.xs },
+  castItem: { width: 72, marginHorizontal: spacing.xs },
+  castPhoto: { width: 64, height: 96, borderRadius: radius.md, marginBottom: spacing.sm },
+  castPhotoFallback: { backgroundColor: colors.surfaceHigh },
+  castName: { ...typography.micro, color: colors.text, fontFamily: 'Outfit_600SemiBold', lineHeight: 14 },
+  castCharacter: { ...typography.micro, color: colors.textDim, lineHeight: 13, marginTop: spacing.xxs },
+
+  providerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   providerItem: { alignItems: 'center', width: 56 },
-  providerLogo: { width: 40, height: 40, borderRadius: 8, marginBottom: 4 },
-  providerName: { color: '#7a5535', fontSize: 10, textAlign: 'center' },
-  errorText: { color: '#e05020', textAlign: 'center', marginTop: 40, fontSize: 14 },
+  providerLogo: { width: 40, height: 40, borderRadius: radius.md, marginBottom: spacing.xs },
+  providerName: { ...typography.micro, textAlign: 'center' },
+
+  errorText: { ...typography.body, color: colors.error, textAlign: 'center', marginTop: spacing['3xl'] },
 })

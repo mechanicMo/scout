@@ -1,0 +1,24 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- No background — transparent for Android adaptive icon -->
+
+  <!-- Left barrel -->
+  <ellipse cx="360" cy="512" rx="168" ry="192" fill="#e8a020"/>
+  <!-- Right barrel -->
+  <ellipse cx="664" cy="512" rx="168" ry="192" fill="#e8a020"/>
+  <!-- Bridge connector -->
+  <rect x="432" y="464" width="160" height="96" rx="16" fill="#e8a020"/>
+
+  <!-- Left lens cavity -->
+  <circle cx="360" cy="512" r="124" fill="#1a0e06"/>
+  <!-- Right lens cavity -->
+  <circle cx="664" cy="512" r="124" fill="#1a0e06"/>
+
+  <!-- Left lens inner -->
+  <circle cx="360" cy="512" r="88" fill="#100a04"/>
+  <!-- Right lens inner -->
+  <circle cx="664" cy="512" r="88" fill="#100a04"/>
+
+  <!-- Glints -->
+  <circle cx="332" cy="484" r="18" fill="#e8a020" opacity="0.28"/>
+  <circle cx="636" cy="484" r="18" fill="#e8a020" opacity="0.28"/>
+</svg>

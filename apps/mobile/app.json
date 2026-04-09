@@ -14,6 +14,7 @@
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#100a04"
       },
       "package": "com.mechanicmo.scout"
