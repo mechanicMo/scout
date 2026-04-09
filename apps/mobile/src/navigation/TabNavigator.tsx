@@ -16,8 +16,8 @@ const ICONS: Record<string, string> = {
 function TabIcon({ label, focused }: { label: string; focused: boolean }) {
   return (
     <View style={styles.iconWrapper}>
-      {focused && <View style={styles.activeIndicator} />}
-      <Text style={[styles.icon, focused ? styles.iconActive : styles.iconInactive]}>
+      {focused && <View style={styles.indicator} />}
+      <Text style={[styles.icon, focused ? styles.iconFocused : styles.iconUnfocused]}>
         {ICONS[label]}
       </Text>
     </View>
@@ -27,67 +27,60 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
 export function TabNavigator() {
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
         tabBarShowLabel: false,
         tabBarStyle: styles.tabBar,
-      }}
+        tabBarActiveTintColor: colors.gold,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
+      })}
     >
-      <Tab.Screen
-        name="Picks"
-        component={PicksScreen}
-        options={{ tabBarIcon: ({ focused }) => <TabIcon label="Picks" focused={focused} /> }}
-      />
-      <Tab.Screen
-        name="Search"
-        component={SearchScreen}
-        options={{ tabBarIcon: ({ focused }) => <TabIcon label="Search" focused={focused} /> }}
-      />
-      <Tab.Screen
-        name="Watchlist"
-        component={WatchlistScreen}
-        options={{ tabBarIcon: ({ focused }) => <TabIcon label="Watchlist" focused={focused} /> }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{ tabBarIcon: ({ focused }) => <TabIcon label="Profile" focused={focused} /> }}
-      />
+      <Tab.Screen name="Picks" component={PicksScreen} />
+      <Tab.Screen name="Search" component={SearchScreen} />
+      <Tab.Screen name="Watchlist" component={WatchlistScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   )
 }
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: '#0e0803',
-    borderTopWidth: 1,
+    backgroundColor: colors.surfaceHigh,
     borderTopColor: colors.border,
-    height: 60,
-    paddingBottom: 8,
-    paddingTop: 6,
+    borderTopWidth: 1,
+    height: 56,
+    paddingBottom: 4,
+    paddingTop: 8,
   },
+
   iconWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 40,
-    height: 40,
+    width: 24,
+    height: 24,
+    position: 'relative',
   },
-  activeIndicator: {
+
+  indicator: {
     position: 'absolute',
-    top: 0,
-    width: 20,
-    height: 2,
-    borderRadius: 1,
+    top: -8,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: colors.gold,
   },
+
   icon: {
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 24,
+    fontWeight: '600',
   },
-  iconActive: {
+
+  iconFocused: {
     color: colors.gold,
   },
-  iconInactive: {
-    color: colors.surfaceHigh,
+
+  iconUnfocused: {
+    color: colors.textMuted,
   },
 })
