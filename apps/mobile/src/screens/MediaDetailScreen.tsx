@@ -47,7 +47,7 @@ export function MediaDetailScreen({ route, navigation }: Props) {
   const historyQuery = trpc.watchHistory.list.useQuery()
   const tagsQuery = trpc.tmdb.generateTags.useQuery(
     { tmdbId, mediaType },
-    { enabled: showRatingModal }
+    { enabled: showRatingModal, staleTime: Infinity }
   )
 
   const addMutation = trpc.watchlist.add.useMutation({

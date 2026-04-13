@@ -1,0 +1,134 @@
+<h2>Mood Search — Full Design</h2>
+<p class="subtitle">End-to-end flow from entry to results</p>
+
+<div class="section">
+  <h3>1. Entry Point — Picks Screen</h3>
+  <div class="split">
+    <div class="mockup">
+      <div class="mockup-header">Before (current)</div>
+      <div class="mockup-body" style="background:#1a1a1a;color:#e8e8e8;padding:16px;font-family:system-ui;font-size:13px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <span style="font-size:20px;font-weight:700;">Picks</span>
+          <span style="color:#888;font-size:11px;">2/3 refines left</span>
+        </div>
+        <div style="background:#2a2a2a;border-radius:12px;padding:12px;margin-bottom:8px;display:flex;gap:12px;">
+          <div style="width:60px;height:85px;background:#333;border-radius:8px;"></div>
+          <div style="flex:1"><div style="font-weight:600;margin-bottom:4px;">The Bear</div><div style="color:#888;font-size:11px;">2022 · TV</div></div>
+        </div>
+        <div style="background:#2a2a2a;border-radius:12px;padding:12px;margin-bottom:8px;display:flex;gap:12px;">
+          <div style="width:60px;height:85px;background:#333;border-radius:8px;"></div>
+          <div style="flex:1"><div style="font-weight:600;margin-bottom:4px;">Severance</div><div style="color:#888;font-size:11px;">2022 · TV</div></div>
+        </div>
+        <div style="flex:1"></div>
+        <div style="border-top:1px solid #333;padding-top:10px;display:flex;gap:8px;margin-top:16px;">
+          <div style="flex:1;background:#2a2a2a;border-radius:20px;padding:10px 16px;color:#888;font-size:13px;">Tell Scout what you're in the mood for...</div>
+          <div style="width:36px;height:36px;background:#555;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#888;">→</div>
+        </div>
+      </div>
+    </div>
+    <div class="mockup">
+      <div class="mockup-header">After (redesigned)</div>
+      <div class="mockup-body" style="background:#1a1a1a;color:#e8e8e8;padding:16px;font-family:system-ui;font-size:13px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <span style="font-size:20px;font-weight:700;">Picks</span>
+        </div>
+        <div style="background:#2a2a2a;border-radius:12px;padding:12px;margin-bottom:8px;display:flex;gap:12px;">
+          <div style="width:60px;height:85px;background:#333;border-radius:8px;"></div>
+          <div style="flex:1"><div style="font-weight:600;margin-bottom:4px;">The Bear</div><div style="color:#888;font-size:11px;">2022 · TV</div></div>
+        </div>
+        <div style="background:#2a2a2a;border-radius:12px;padding:12px;margin-bottom:8px;display:flex;gap:12px;">
+          <div style="width:60px;height:85px;background:#333;border-radius:8px;"></div>
+          <div style="flex:1"><div style="font-weight:600;margin-bottom:4px;">Severance</div><div style="color:#888;font-size:11px;">2022 · TV</div></div>
+        </div>
+        <div style="flex:1"></div>
+        <div style="border-top:1px solid #333;padding-top:10px;margin-top:16px;">
+          <div style="background:#2a2a2a;border:1px solid #444;border-radius:20px;padding:12px 16px;color:#888;font-size:13px;text-align:center;cursor:pointer;">
+            🔍 What are you in the mood for?
+          </div>
+          <div style="text-align:center;color:#666;font-size:11px;margin-top:6px;">3 searches left today</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p style="margin-top:12px;color:#aaa;font-size:14px;"><strong>Changes:</strong> Chat bar becomes a tappable entry point (no inline typing). Refine usage badge replaced with mood search count. Tapping pushes to full Mood Search screen.</p>
+</div>
+
+<div class="section">
+  <h3>2. Mood Search Screen — History View</h3>
+  <div class="mockup" style="max-width:380px;margin:0 auto;">
+    <div class="mockup-header">Initial state (before searching)</div>
+    <div class="mockup-body" style="background:#1a1a1a;color:#e8e8e8;padding:16px;font-family:system-ui;font-size:13px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+        <span style="color:#888;font-size:18px;">←</span>
+        <div style="flex:1;background:#2a2a2a;border:1px solid #444;border-radius:20px;padding:10px 16px;display:flex;align-items:center;">
+          <span style="color:#e8e8e8;flex:1;">dark thriller with a twist|</span>
+        </div>
+        <div style="width:36px;height:36px;background:#e8a020;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#1a1a1a;font-weight:700;">→</div>
+      </div>
+      <div style="color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Recent searches</div>
+      <div style="background:#2a2a2a;border-radius:12px;padding:14px 16px;margin-bottom:8px;border:1px solid #333;">
+        <div style="font-weight:600;margin-bottom:2px;">90s comedies with ensemble casts</div>
+        <div style="color:#888;font-size:11px;">8 results · 2 hours ago</div>
+      </div>
+      <div style="background:#2a2a2a;border-radius:12px;padding:14px 16px;margin-bottom:8px;border:1px solid #333;">
+        <div style="font-weight:600;margin-bottom:2px;">something lighthearted</div>
+        <div style="color:#888;font-size:11px;">5 results · yesterday</div>
+      </div>
+      <div style="background:#2a2a2a;border-radius:12px;padding:14px 16px;margin-bottom:8px;border:1px solid #333;">
+        <div style="font-weight:600;margin-bottom:2px;">mind-bending sci-fi</div>
+        <div style="color:#888;font-size:11px;">7 results · 3 days ago</div>
+      </div>
+      <div style="text-align:center;color:#666;font-size:11px;margin-top:16px;">2 of 3 searches left today</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>3. Mood Search Screen — Results View</h3>
+  <div class="mockup" style="max-width:380px;margin:0 auto;">
+    <div class="mockup-header">After sending a search</div>
+    <div class="mockup-body" style="background:#1a1a1a;color:#e8e8e8;padding:16px;font-family:system-ui;font-size:13px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <span style="color:#888;font-size:18px;">←</span>
+        <span style="font-size:17px;font-weight:700;flex:1;">Dark thrillers with a twist</span>
+        <div style="width:32px;height:32px;border:1px solid #444;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#888;font-size:14px;">↻</div>
+      </div>
+      <div style="color:#888;font-size:11px;margin-bottom:16px;margin-left:26px;">7 results</div>
+
+      <div style="background:#2a2a2a;border-radius:12px;padding:12px;margin-bottom:8px;display:flex;gap:12px;">
+        <div style="width:60px;height:85px;background:#333;border-radius:8px;"></div>
+        <div style="flex:1">
+          <div style="font-weight:600;margin-bottom:4px;">Gone Girl</div>
+          <div style="color:#888;font-size:11px;margin-bottom:6px;">2014 · Movie</div>
+          <div style="display:flex;gap:6px;">
+            <span style="color:#888;font-size:12px;border:1px solid #444;border-radius:12px;padding:2px 8px;">Pass</span>
+            <span style="background:#e8a020;color:#1a1a1a;font-size:12px;border-radius:12px;padding:2px 10px;font-weight:600;">+</span>
+          </div>
+        </div>
+      </div>
+      <div style="background:#2a2a2a;border-radius:12px;padding:12px;margin-bottom:8px;display:flex;gap:12px;">
+        <div style="width:60px;height:85px;background:#333;border-radius:8px;"></div>
+        <div style="flex:1">
+          <div style="font-weight:600;margin-bottom:4px;">Prisoners</div>
+          <div style="color:#888;font-size:11px;margin-bottom:6px;">2013 · Movie</div>
+          <div style="display:flex;gap:6px;">
+            <span style="color:#888;font-size:12px;border:1px solid #444;border-radius:12px;padding:2px 8px;">Pass</span>
+            <span style="background:#e8a020;color:#1a1a1a;font-size:12px;border-radius:12px;padding:2px 10px;font-weight:600;">+</span>
+          </div>
+        </div>
+      </div>
+      <div style="background:#2a2a2a;border-radius:12px;padding:12px;margin-bottom:8px;display:flex;gap:12px;">
+        <div style="width:60px;height:85px;background:#333;border-radius:8px;"></div>
+        <div style="flex:1">
+          <div style="font-weight:600;margin-bottom:4px;">Shutter Island</div>
+          <div style="color:#888;font-size:11px;margin-bottom:6px;">2010 · Movie</div>
+          <div style="display:flex;gap:6px;">
+            <span style="color:#888;font-size:12px;border:1px solid #444;border-radius:12px;padding:2px 8px;">Pass</span>
+            <span style="background:#e8a020;color:#1a1a1a;font-size:12px;border-radius:12px;padding:2px 10px;font-weight:600;">+</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p style="margin-top:12px;color:#aaa;font-size:14px;"><strong>Key details:</strong> Back arrow returns to history view. Refresh icon (↻) re-runs the search (costs 1 credit). Title is AI-generated or verbatim based on message length. Same card interactions as Picks (swipe, pass, add, tap for detail).</p>
+</div>

@@ -72,7 +72,7 @@ export function WatchlistScreen() {
   })
   const tagsQuery = trpc.tmdb.generateTags.useQuery(
     { tmdbId: ratingTarget?.tmdbId ?? 0, mediaType: ratingTarget?.mediaType ?? 'movie' },
-    { enabled: !!ratingTarget }
+    { enabled: !!ratingTarget, staleTime: Infinity }
   )
 
   const allGenres = useMemo(() => {

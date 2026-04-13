@@ -1,0 +1,40 @@
+<h2>How do you enter the mood search?</h2>
+<p class="subtitle">The chat bar currently sits at the bottom of the Picks screen. How should tapping it transition to the full mood search experience?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Bottom Sheet Expand</h3>
+      <p>Tapping the chat bar expands a bottom sheet upward to full screen. The input stays at the top of the sheet. Feels like the keyboard pulled up a new layer. Swipe down to dismiss back to Picks.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Smooth, native-feeling transition</li><li>Easy to dismiss (swipe down)</li><li>Chat bar position stays consistent</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Bottom sheet can feel cramped on smaller phones</li><li>Gesture conflicts with scrolling results</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Full Screen Push</h3>
+      <p>Tapping the chat bar navigates to a new full screen (standard stack push). Back button or swipe-back to return to Picks. Input bar at the top, history below.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Maximum space for content</li><li>Clean separation between Picks and Mood</li><li>Standard navigation pattern — no gesture conflicts</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Slightly heavier transition</li><li>Losing sight of Picks feels like leaving the tab</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Inline Transform</h3>
+      <p>The Picks feed fades/slides away and the mood search UI takes its place in the same screen. The header changes from "Picks" to show the search context. No navigation push — it's a mode switch within the tab.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Stays within the Picks tab conceptually</li><li>Lightweight feel</li><li>No navigation stack complexity</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Harder to implement cleanly</li><li>State management between modes gets tricky</li><li>"Back" behavior is less obvious</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
