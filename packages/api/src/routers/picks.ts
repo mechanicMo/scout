@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { eq, and, gt, desc, gte, or, count } from 'drizzle-orm'
 import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'
-import { fetchTrending } from '@scout/shared'
+import { fetchTrending, discoverTMDB, TMDB_GENRE_MAP } from '@scout/shared'
 import { GroqProvider } from '@scout/ai'
 import { db, recommendations, tasteProfiles, watchHistory, usageLogs, users, watchlist } from '@scout/db'
 import { getOrFetchMedia } from '../lib/mediaEnrich'
@@ -239,7 +239,46 @@ export const picksRouter = router({
       }))
 
       const groq = new GroqProvider(getGroqKey())
-      const rawRecs: Recommendation[] = await groq.refineRecommendations(input.message, currentRecsForAI, tasteProfileInput)
+      const tmdbToken = getTMDBToken()
+
+      // Step 1: Extract structured filters from user message
+      const filters = await groq.extractSearchFilters(input.message)
+
+      // Step 2: Query TMDB discover with extracted filters
+      const discoverPool: Array<{ tmdbId: number; mediaType: string; title: string; year: number | null; genres: string[]; overview: string }> = []
+
+      const mediaTypes: Array<'movie' | 'tv'> = filters.mediaType === 'any'
+        ? ['movie', 'tv']
+        : [filters.mediaType]
+
+      for (const mt of mediaTypes) {
+        const genreIds = filters.genres
+          .map(g => TMDB_GENRE_MAP[g.toLowerCase()])
+          .filter((id): id is number => id !== undefined)
+
+        const results = await discoverTMDB({
+          mediaType: mt,
+          genres: genreIds.length > 0 ? genreIds : undefined,
+          yearMin: filters.yearMin,
+          yearMax: filters.yearMax,
+        }, tmdbToken)
+
+        for (const r of results) {
+          discoverPool.push({
+            tmdbId: r.tmdbId,
+            mediaType: r.mediaType,
+            title: r.title,
+            year: r.year,
+            genres: r.genres,
+            overview: r.overview,
+          })
+        }
+      }
+
+      // Step 3: LLM ranks/curates from the real discover results
+      const rawRecs: Recommendation[] = await groq.refineRecommendations(
+        input.message, currentRecsForAI, tasteProfileInput, discoverPool
+      )
 
       // Replace stored recs with refined ones
       await db.delete(recommendations).where(
@@ -252,7 +291,7 @@ export const picksRouter = router({
       }
 
       await logUsage(userId, 'refine')
-      return enrichRecs(rawRecs, getTMDBToken())
+      return enrichRecs(rawRecs, tmdbToken)
     }),
 
   usage: protectedProcedure

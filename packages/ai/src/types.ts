@@ -19,6 +19,15 @@ export interface Interaction {
   surveyAnswer?: string
 }
 
+export interface SearchFilters {
+  mediaType: 'movie' | 'tv' | 'any'
+  genres: string[]           // genre names like "comedy", "thriller"
+  yearMin?: number
+  yearMax?: number
+  mood?: string              // e.g. "lighthearted", "dark", "intense"
+  keywords?: string[]        // e.g. "time travel", "heist"
+}
+
 export interface AIProvider {
   /**
    * Generate a ranked list of recommendations for a user.
@@ -35,12 +44,20 @@ export interface AIProvider {
    * @param message - User's free-text refinement (e.g. "something shorter")
    * @param current - The current recommendation list to refine
    * @param profile - The user's taste profile for context
+   * @param discoverPool - Optional pool of real TMDB results from discover API (for two-step flow)
    */
   refineRecommendations(
     message: string,
     current: Recommendation[],
-    profile: TasteProfile
+    profile: TasteProfile,
+    discoverPool?: Array<{ tmdbId: number; mediaType: string; title: string; year: number | null; genres: string[]; overview: string }>
   ): Promise<Recommendation[]>
+
+  /**
+   * Extract structured search filters from a natural language message.
+   * Step 1 of the two-step refine flow.
+   */
+  extractSearchFilters(message: string): Promise<SearchFilters>
 
   /**
    * Generate the next survey question to fill gaps in the taste profile.

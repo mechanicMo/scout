@@ -1,4 +1,4 @@
-import type { AIProvider, Interaction } from '../types'
+import type { AIProvider, Interaction, SearchFilters } from '../types'
 import type { TasteProfile, WatchedItem, Recommendation, SurveyQuestion, SurveyAnswer, MediaItem } from '@scout/shared'
 
 const GROQ_BASE = 'https://api.groq.com/openai/v1/chat/completions'
@@ -100,11 +100,19 @@ Example: [{"tmdbId": 278, "mediaType": "movie"}, {"tmdbId": 1396, "mediaType": "
   async refineRecommendations(
     message: string,
     current: Recommendation[],
-    profile: TasteProfile
+    profile: TasteProfile,
+    discoverPool?: Array<{ tmdbId: number; mediaType: string; title: string; year: number | null; genres: string[]; overview: string }>
   ): Promise<Recommendation[]> {
     const currentList = current.map(r =>
       r.media ? `- ${r.media.title} (${r.mediaType}, TMDB ${r.tmdbId})` : `- TMDB ${r.tmdbId} (${r.mediaType})`
     ).join('\n')
+
+    // Build the pool section - these are real, verified TMDB titles
+    const poolSection = discoverPool && discoverPool.length > 0
+      ? `\nAvailable titles from search (USE THESE - they are verified TMDB entries):\n${discoverPool.map(p =>
+          `- "${p.title}" (${p.year ?? '?'}, ${p.mediaType}, TMDB ${p.tmdbId}) — ${p.genres.join(', ')}${p.overview ? ` — ${p.overview.slice(0, 100)}` : ''}`
+        ).join('\n')}`
+      : ''
 
     const content = await this.chat([
       {
@@ -121,8 +129,11 @@ ${currentList || '(none)'}
 User says: "${message}"
 
 Profile notes: ${profile.notes || '(none)'}
+${poolSection}
 
-Return exactly 10 recommendations. JSON array only.
+Return exactly 10 recommendations. STRONGLY PREFER titles from the "Available titles" list above — they are verified to exist. Only use titles outside the list if the list doesn't have enough good matches.
+
+JSON array only.
 Each item: {"tmdbId": number, "mediaType": "movie" or "tv"}`,
       },
     ])
@@ -141,6 +152,46 @@ Each item: {"tmdbId": number, "mediaType": "movie" or "tv"}`,
         generatedAt: now,
         status: 'pending' as const,
       }))
+  }
+
+  async extractSearchFilters(message: string): Promise<SearchFilters> {
+    const currentYear = new Date().getFullYear()
+    const content = await this.chat([
+      {
+        role: 'system',
+        content: `You extract structured search filters from natural language movie/TV requests. Current year is ${currentYear}. Respond ONLY with valid JSON.`,
+      },
+      {
+        role: 'user',
+        content: `Extract search filters from this request: "${message}"
+
+Return JSON:
+{
+  "mediaType": "movie" or "tv" or "any",
+  "genres": ["genre1", "genre2"],
+  "yearMin": number or null,
+  "yearMax": number or null,
+  "mood": "one word mood" or null,
+  "keywords": ["keyword1"] or []
+}
+
+Genre names should be lowercase TMDB genres: action, adventure, animation, comedy, crime, documentary, drama, family, fantasy, history, horror, music, mystery, romance, science fiction, thriller, war, western.
+
+For year references: "recent" = ${currentYear - 1}-${currentYear}, "classic" = pre-1980, "90s" = 1990-1999, "2000s" = 2000-2009.
+For mood: map "lighthearted" to comedy/family genres AND mood, "dark" to thriller/drama, "scary" to horror, etc.`,
+      },
+    ], 300)
+
+    const parsed = this.parseJSON<SearchFilters>(content)
+    if (!parsed) return { mediaType: 'any', genres: [], keywords: [] }
+    return {
+      mediaType: parsed.mediaType ?? 'any',
+      genres: Array.isArray(parsed.genres) ? parsed.genres : [],
+      yearMin: typeof parsed.yearMin === 'number' ? parsed.yearMin : undefined,
+      yearMax: typeof parsed.yearMax === 'number' ? parsed.yearMax : undefined,
+      mood: typeof parsed.mood === 'string' ? parsed.mood : undefined,
+      keywords: Array.isArray(parsed.keywords) ? parsed.keywords : [],
+    }
   }
 
   async generateSurveyQuestion(
