@@ -210,7 +210,7 @@ export const moodSearchRouter = router({
           userId,
           query: input.message,
           title,
-          resultTmdbIds: JSON.stringify(idsToStore),
+          resultTmdbIds: idsToStore,
         })
         .returning()
 
@@ -291,7 +291,7 @@ export const moodSearchRouter = router({
       await db
         .update(moodSearches)
         .set({
-          resultTmdbIds: JSON.stringify(idsToStore),
+          resultTmdbIds: idsToStore,
           updatedAt: new Date(),
         })
         .where(eq(moodSearches.id, input.searchId))
