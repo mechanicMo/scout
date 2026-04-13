@@ -248,13 +248,15 @@ export function PicksScreen() {
   function handleRatingSubmit(score: number, tags: string[]) {
     if (!ratingTarget) return
     const target = ratingTarget
+    // Close modal and hide card immediately
+    setRatingTarget(null)
+    setDismissedIds(prev => new Set([...prev, `${target.tmdbId}-${target.mediaType}`]))
+    // Continue API calls in background
     addHistoryMutation.mutate(
       { tmdbId: target.tmdbId, mediaType: target.mediaType, score, tags, media: buildMediaPayload(target) },
       {
         onSuccess: () => {
           if (target.genres.length > 0) tasteProfileMutation.mutate({ score, genres: target.genres })
-          setDismissedIds(prev => new Set([...prev, `${target.tmdbId}-${target.mediaType}`]))
-          setRatingTarget(null)
         },
       }
     )
@@ -319,7 +321,10 @@ export function PicksScreen() {
               <SurveyCard
                 question={item.question}
                 options={item.options}
-                onAnswer={answer => submitSurveyMutation.mutate({ question: item.question, answer })}
+                onAnswer={answer => {
+                  setSurveyDismissed(true)
+                  submitSurveyMutation.mutate({ question: item.question, answer })
+                }}
                 onSkip={() => setSurveyDismissed(true)}
                 isPending={submitSurveyMutation.isPending}
               />
