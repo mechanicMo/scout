@@ -145,14 +145,39 @@ export const moodSearchRouter = router({
         input.message, [], profile, discoverPool
       )
 
-      // Step 5: Generate title (verbatim if <=40 chars, else LLM summary)
+      // Step 5: Generate title (verbatim if <=40 chars, else build from filters)
       let title: string
       if (input.message.length <= 40) {
         title = input.message
       } else {
-        // Call LLM to generate short summary
-        const summaryQuestion = await groq.generateSurveyQuestion(profile, [])
-        title = summaryQuestion?.question || input.message.slice(0, 40)
+        // For longer messages, build a short title from the extracted filters
+        const titleParts: string[] = []
+
+        // Add mood if available
+        if (filters.mood) {
+          titleParts.push(filters.mood)
+        }
+
+        // Add up to 2 genres
+        if (filters.genres.length > 0) {
+          titleParts.push(...filters.genres.slice(0, 2))
+        }
+
+        // Add first keyword if available
+        if (filters.keywords && filters.keywords.length > 0) {
+          titleParts.push(filters.keywords[0])
+        }
+
+        // Combine into title (max 60 chars total)
+        title = titleParts
+          .filter(Boolean)
+          .join(' ')
+          .slice(0, 60)
+
+        // Fallback to truncated message if no filters resulted in a title
+        if (!title) {
+          title = input.message.slice(0, 40)
+        }
       }
 
       // Step 6: Enforce 10-item cap on user's searches
