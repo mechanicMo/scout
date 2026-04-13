@@ -193,12 +193,6 @@ export function MediaDetailScreen({ route, navigation }: Props) {
           {media.posterPath ? (
             <View style={styles.posterContainer}>
               <Image source={{ uri: `${POSTER_BASE}${media.posterPath}` }} style={styles.poster} />
-              <LinearGradient
-                colors={['transparent', colors.bg]}
-                style={styles.posterGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-              />
             </View>
           ) : (
             <View style={[styles.poster, styles.posterFallback]} />
@@ -406,9 +400,8 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing['3xl'] },
 
   hero: { flexDirection: 'row', gap: spacing.lg, marginBottom: spacing.xxl, paddingHorizontal: spacing.lg, marginTop: spacing.lg },
-  posterContainer: { position: 'relative', overflow: 'hidden', borderRadius: radius.lg, ...shadows.lg },
+  posterContainer: { position: 'relative', overflow: 'hidden', borderRadius: radius.lg, ...shadows.sm },
   poster: { width: 110, height: 165, borderRadius: radius.lg },
-  posterGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 60 },
   posterFallback: { backgroundColor: colors.surfaceHigh },
   heroInfo: { flex: 1, justifyContent: 'flex-start', gap: spacing.xs },
 

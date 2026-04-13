@@ -9,6 +9,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { colors, typography, spacing, radius, shadows } from '../theme'
 import { trpc } from '../lib/trpc'
 import type { RootStackParamList } from '../navigation/MainNavigator'
+import { DismissSheet } from '../components/DismissSheet'
+import { RatingModal } from '../components/RatingModal'
 
 const POSTER_BASE = 'https://image.tmdb.org/t/p/w185'
 
@@ -74,6 +76,11 @@ const swipeStyles = StyleSheet.create({
   },
 })
 
+type FeedTarget = {
+  tmdbId: number; mediaType: 'movie' | 'tv'; title: string
+  genres: string[]; posterPath: string | null; year: number | null; overview: string
+}
+
 interface MoodSearchScreenProps {
   navigation: Nav
 }
@@ -82,6 +89,9 @@ export function MoodSearchScreen({ navigation }: MoodSearchScreenProps) {
   const [selectedSearchId, setSelectedSearchId] = useState<string | null>(null)
   const [searchText, setSearchText] = useState('')
   const [searchError, setSearchError] = useState<string | null>(null)
+  const [passedIds, setPassedIds] = useState<Set<string>>(new Set())
+  const [dismissTarget, setDismissTarget] = useState<FeedTarget | null>(null)
+  const [ratingTarget, setRatingTarget] = useState<FeedTarget | null>(null)
   const utils = trpc.useUtils()
 
   const historyQuery = trpc.moodSearch.history.useQuery()
@@ -109,10 +119,28 @@ export function MoodSearchScreen({ navigation }: MoodSearchScreenProps) {
   )
   const watchlistQuery = trpc.watchlist.list.useQuery({})
   const addMutation = trpc.watchlist.add.useMutation({ onSuccess: () => utils.watchlist.list.invalidate() })
+  const updateStatusMutation = trpc.watchlist.updateStatus.useMutation({ onSuccess: () => utils.watchlist.list.invalidate() })
+  const addHistoryMutation = trpc.watchHistory.add.useMutation()
+  const tasteProfileMutation = trpc.tasteProfile.updateFromRating.useMutation()
+  const tagsQuery = trpc.tmdb.generateTags.useQuery(
+    { tmdbId: ratingTarget?.tmdbId ?? 0, mediaType: ratingTarget?.mediaType ?? 'movie' },
+    { enabled: !!ratingTarget, staleTime: Infinity }
+  )
 
   const watchlistedSet = useMemo(
     () => new Set(
-      (watchlistQuery.data ?? []).map((i: any) => `${i.tmdbId}-${i.mediaType}`)
+      (watchlistQuery.data ?? [])
+        .filter((i: any) => i.status === 'saved')
+        .map((i: any) => `${i.tmdbId}-${i.mediaType}`)
+    ),
+    [watchlistQuery.data]
+  )
+
+  const dismissedSet = useMemo(
+    () => new Set(
+      (watchlistQuery.data ?? [])
+        .filter((i: any) => i.status === 'dismissed_not_now' || i.status === 'dismissed_never')
+        .map((i: any) => `${i.tmdbId}-${i.mediaType}`)
     ),
     [watchlistQuery.data]
   )
@@ -141,6 +169,62 @@ export function MoodSearchScreen({ navigation }: MoodSearchScreenProps) {
   function handleRefresh() {
     if (!selectedSearchId) return
     refreshMutation.mutate({ searchId: selectedSearchId })
+  }
+
+  function buildMediaPayload(item: FeedTarget) {
+    return {
+      title: item.title, posterPath: item.posterPath, year: item.year,
+      genres: item.genres, overview: item.overview, runtime: null, watchProviders: {},
+    }
+  }
+
+  async function dismissWithStatus(target: FeedTarget, status: 'dismissed_not_now' | 'dismissed_never', resurfaceAfter?: string) {
+    const key = `${target.tmdbId}-${target.mediaType}`
+    setDismissTarget(null)
+    setPassedIds(prev => new Set([...prev, key]))
+    try {
+      await addMutation.mutateAsync({ tmdbId: target.tmdbId, mediaType: target.mediaType, media: buildMediaPayload(target) })
+      const freshList = await utils.watchlist.list.fetch({})
+      const item = freshList?.find((w: any) => w.tmdbId === target.tmdbId && w.mediaType === target.mediaType)
+      if (item) updateStatusMutation.mutate({ id: item.id, status, resurfaceAfter })
+    } catch (e) {
+      // Item may already exist in watchlist - try to update status directly
+      const freshList = await utils.watchlist.list.fetch({})
+      const item = freshList?.find((w: any) => w.tmdbId === target.tmdbId && w.mediaType === target.mediaType)
+      if (item) updateStatusMutation.mutate({ id: item.id, status, resurfaceAfter })
+    }
+  }
+
+  function handleDismissNotNow() {
+    if (!dismissTarget) return
+    const d = new Date(); d.setDate(d.getDate() + 30)
+    dismissWithStatus(dismissTarget, 'dismissed_not_now', d.toISOString().split('T')[0])
+  }
+  function handleDismissNotInterested() {
+    if (!dismissTarget) return
+    dismissWithStatus(dismissTarget, 'dismissed_never')
+  }
+  function handleDismissAlreadyWatched() {
+    if (!dismissTarget) return
+    const target = dismissTarget
+    setRatingTarget(target)
+    setDismissTarget(null)
+    setPassedIds(prev => new Set([...prev, `${target.tmdbId}-${target.mediaType}`]))
+  }
+
+  function handleRatingSubmit(score: number, tags: string[]) {
+    if (!ratingTarget) return
+    const target = ratingTarget
+    setRatingTarget(null)
+    setPassedIds(prev => new Set([...prev, `${target.tmdbId}-${target.mediaType}`]))
+    addHistoryMutation.mutate(
+      { tmdbId: target.tmdbId, mediaType: target.mediaType, score, tags, media: buildMediaPayload(target) },
+      {
+        onSuccess: () => {
+          if (target.genres.length > 0) tasteProfileMutation.mutate({ score, genres: target.genres })
+        },
+      }
+    )
   }
 
   // History view
@@ -201,7 +285,7 @@ export function MoodSearchScreen({ navigation }: MoodSearchScreenProps) {
                     onPress={() => setSelectedSearchId(item.id)}
                   >
                     <Text style={styles.historyTitle}>{item.title}</Text>
-                    <Text style={styles.historyMeta}>{item.resultCount} results · {formatTime(item.createdAt)}</Text>
+                    <Text style={styles.historyMeta}>{formatTime(item.createdAt)}</Text>
                   </TouchableOpacity>
                 )}
               />
@@ -251,20 +335,26 @@ export function MoodSearchScreen({ navigation }: MoodSearchScreenProps) {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.resultCount}>{resultsQuery.data?.length ?? 0} results</Text>
-
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.gold} />
         </View>
       ) : resultsQuery.data && resultsQuery.data.length > 0 ? (
         <FlatList
-          data={resultsQuery.data}
+          data={resultsQuery.data?.filter(item => {
+            const key = `${item.tmdbId}-${item.mediaType}`
+            return !passedIds.has(key) && !dismissedSet.has(key)
+          })}
           keyExtractor={item => `${item.tmdbId}-${item.mediaType}`}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => {
             const key = `${item.tmdbId}-${item.mediaType}`
             const inWatchlist = watchlistedSet.has(key)
+
+            const dismissPayload: FeedTarget = {
+              tmdbId: item.tmdbId, mediaType: item.mediaType, title: item.title,
+              genres: item.genres, posterPath: item.posterPath, year: item.year, overview: item.overview,
+            }
 
             return (
               <SwipeableCard
@@ -288,7 +378,10 @@ export function MoodSearchScreen({ navigation }: MoodSearchScreenProps) {
                     <Text style={styles.meta}>{[item.year, item.mediaType === 'tv' ? 'TV' : 'Movie'].filter(Boolean).join(' · ')}</Text>
                     {item.overview?.length > 0 && <Text style={styles.overview} numberOfLines={2}>{item.overview}</Text>}
                     <View style={styles.actions}>
-                      <TouchableOpacity style={styles.passButton}>
+                      <TouchableOpacity
+                        style={styles.passButton}
+                        onPress={() => setDismissTarget(dismissPayload)}
+                      >
                         <Text style={styles.passText}>Pass</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
@@ -310,6 +403,15 @@ export function MoodSearchScreen({ navigation }: MoodSearchScreenProps) {
           <Text style={styles.emptyText}>No results</Text>
         </View>
       )}
+      <DismissSheet
+        visible={!!dismissTarget} title={dismissTarget?.title ?? ''}
+        onClose={() => setDismissTarget(null)} onNotNow={handleDismissNotNow}
+        onAlreadyWatched={handleDismissAlreadyWatched} onNotInterested={handleDismissNotInterested}
+      />
+      <RatingModal
+        visible={!!ratingTarget} title={ratingTarget?.title ?? ''} tags={tagsQuery.data ?? ratingTarget?.genres ?? []}
+        onClose={() => setRatingTarget(null)} onSubmit={handleRatingSubmit} isPending={addHistoryMutation.isPending}
+      />
     </SafeAreaView>
   )
 }
@@ -370,7 +472,6 @@ const styles = StyleSheet.create({
   resultsTitle: { ...typography.heading, color: colors.text, flex: 1, fontSize: 17 },
   refreshButton: { width: 32, height: 32, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   refreshText: { color: colors.textMuted, fontSize: 14 },
-  resultCount: { paddingHorizontal: spacing.lg, fontSize: 11, color: colors.textMuted, marginBottom: spacing.md },
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
   card: { backgroundColor: colors.surfaceRaised, marginBottom: spacing.xs, borderRadius: radius.md, ...shadows.md, overflow: 'hidden' },
