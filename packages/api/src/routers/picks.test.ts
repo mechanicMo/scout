@@ -45,9 +45,6 @@ vi.mock('@scout/ai', () => ({
       { tmdbId: 550, mediaType: 'movie', id: '', userId: 'user-1', generatedAt: new Date().toISOString(), status: 'pending' },
       { tmdbId: 1396, mediaType: 'tv', id: '', userId: 'user-1', generatedAt: new Date().toISOString(), status: 'pending' },
     ]),
-    refineRecommendations: vi.fn().mockResolvedValue([
-      { tmdbId: 680, mediaType: 'movie', id: '', userId: 'user-1', generatedAt: new Date().toISOString(), status: 'pending' },
-    ]),
   })),
 }))
 
@@ -143,35 +140,6 @@ describe('picks.aiRecs', () => {
   })
 })
 
-describe('picks.refine', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    resetMockDbChain()
-    mockDb.limit.mockResolvedValue([])
-  })
-
-  it('returns refined media items', async () => {
-    mockDb.limit
-      .mockResolvedValueOnce([{ tier: 'paid' }]) // user tier (paid skips count check)
-      .mockResolvedValueOnce([]) // current recs
-      .mockResolvedValueOnce([{  // taste profile
-        id: 'tp-1', userId: 'user-1',
-        likedGenres: ['Drama'], dislikedGenres: [], likedThemes: [],
-        favoriteActors: [], services: [], notes: '',
-        lastUpdated: new Date(),
-      }])
-
-    const caller = createCaller({ userId: 'user-1' })
-    const result = await caller.refine({ message: 'Something dark' })
-    expect(result.length).toBeGreaterThan(0)
-  })
-
-  it('throws when unauthenticated', async () => {
-    const caller = createCaller({ userId: null })
-    await expect(caller.refine({ message: 'test' })).rejects.toThrow()
-  })
-})
-
 describe('picks.aiRecs rate limiting', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -204,31 +172,3 @@ describe('picks.aiRecs rate limiting', () => {
   })
 })
 
-describe('picks.refine rate limiting', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    resetMockDbChain()
-    mockDb.limit.mockResolvedValue([])
-  })
-
-  it('blocks free user after 3 refinements today', async () => {
-    mockDb.limit
-      .mockResolvedValueOnce([{ tier: 'free' }]) // user tier
-      .mockResolvedValueOnce([{ count: 3 }]) // usage count at limit
-    const caller = createCaller({ userId: 'user-1' })
-    await expect(caller.refine({ message: 'something dark' })).rejects.toThrow()
-  })
-
-  it('allows paid user regardless of refinement count', async () => {
-    mockDb.limit
-      .mockResolvedValueOnce([{ tier: 'paid' }]) // user tier — paid skips count check
-      .mockResolvedValueOnce([]) // current recs
-      .mockResolvedValueOnce([{
-        id: 'tp-1', userId: 'user-1', likedGenres: [], dislikedGenres: [],
-        likedThemes: [], favoriteActors: [], services: [], notes: '',
-        lastUpdated: new Date(),
-      }]) // profile
-    const caller = createCaller({ userId: 'user-1' })
-    await expect(caller.refine({ message: 'something dark' })).resolves.toBeDefined()
-  })
-})

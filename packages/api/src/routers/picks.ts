@@ -25,7 +25,7 @@ function getGroqKey(): string {
 
 async function checkRateLimit(
   userId: string,
-  action: 'ai_recs' | 'refine',
+  action: 'ai_recs',
   freeLimit: number
 ): Promise<void> {
   const [user] = await db.select({ tier: users.tier }).from(users).where(eq(users.id, userId)).limit(1)
@@ -53,7 +53,7 @@ async function checkRateLimit(
   }
 }
 
-async function logUsage(userId: string, action: 'ai_recs' | 'refine'): Promise<void> {
+async function logUsage(userId: string, action: 'ai_recs'): Promise<void> {
   await db.insert(usageLogs).values({ userId, action })
 }
 
@@ -184,116 +184,6 @@ export const picksRouter = router({
       return enrichRecs(rawRecs, getTMDBToken())
     }),
 
-  refine: protectedProcedure
-    .input(z.object({ message: z.string().min(1).max(500) }))
-    .mutation(async ({ ctx, input }) => {
-      const userId = ctx.userId
-      await checkRateLimit(userId, 'refine', 3)
-
-      // Get current recs for context
-      const currentRecs = await db
-        .select()
-        .from(recommendations)
-        .where(and(eq(recommendations.userId, userId), eq(recommendations.status, 'pending')))
-        .limit(20)
-
-      const profileRows = await db
-        .select()
-        .from(tasteProfiles)
-        .where(eq(tasteProfiles.userId, userId))
-        .limit(1)
-
-      const profile = profileRows[0]
-
-      const tasteProfileInput: TasteProfile = profile
-        ? {
-            id: profile.id,
-            userId: profile.userId,
-            likedGenres: profile.likedGenres ?? [],
-            dislikedGenres: profile.dislikedGenres ?? [],
-            likedThemes: profile.likedThemes ?? [],
-            favoriteActors: profile.favoriteActors ?? [],
-            services: profile.services ?? [],
-            notes: profile.notes ?? '',
-            lastUpdated: profile.lastUpdated.toISOString(),
-          }
-        : {
-            id: '',
-            userId,
-            likedGenres: [],
-            dislikedGenres: [],
-            likedThemes: [],
-            favoriteActors: [],
-            services: [],
-            notes: '',
-            lastUpdated: new Date().toISOString(),
-          }
-
-      const currentRecsForAI: Recommendation[] = currentRecs.map(r => ({
-        id: r.id,
-        userId: r.userId,
-        tmdbId: r.tmdbId,
-        mediaType: r.mediaType,
-        generatedAt: r.generatedAt.toISOString(),
-        status: r.status,
-      }))
-
-      const groq = new GroqProvider(getGroqKey())
-      const tmdbToken = getTMDBToken()
-
-      // Step 1: Extract structured filters from user message
-      const filters = await groq.extractSearchFilters(input.message)
-
-      // Step 2: Query TMDB discover with extracted filters
-      const discoverPool: Array<{ tmdbId: number; mediaType: string; title: string; year: number | null; genres: string[]; overview: string }> = []
-
-      const mediaTypes: Array<'movie' | 'tv'> = filters.mediaType === 'any'
-        ? ['movie', 'tv']
-        : [filters.mediaType]
-
-      for (const mt of mediaTypes) {
-        const genreIds = filters.genres
-          .map(g => TMDB_GENRE_MAP[g.toLowerCase()])
-          .filter((id): id is number => id !== undefined)
-
-        const results = await discoverTMDB({
-          mediaType: mt,
-          genres: genreIds.length > 0 ? genreIds : undefined,
-          yearMin: filters.yearMin,
-          yearMax: filters.yearMax,
-        }, tmdbToken)
-
-        for (const r of results) {
-          discoverPool.push({
-            tmdbId: r.tmdbId,
-            mediaType: r.mediaType,
-            title: r.title,
-            year: r.year,
-            genres: r.genres,
-            overview: r.overview,
-          })
-        }
-      }
-
-      // Step 3: LLM ranks/curates from the real discover results
-      const rawRecs: Recommendation[] = await groq.refineRecommendations(
-        input.message, currentRecsForAI, tasteProfileInput, discoverPool
-      )
-
-      // Replace stored recs with refined ones
-      await db.delete(recommendations).where(
-        and(eq(recommendations.userId, userId), eq(recommendations.status, 'pending'))
-      )
-      if (rawRecs.length > 0) {
-        await db.insert(recommendations).values(
-          rawRecs.map(r => ({ userId, tmdbId: r.tmdbId, mediaType: r.mediaType, status: 'pending' as const }))
-        )
-      }
-
-      await logUsage(userId, 'refine')
-      return enrichRecs(rawRecs, tmdbToken)
-    }),
-
   usage: protectedProcedure
     .query(async ({ ctx }) => {
       const userId = ctx.userId
@@ -309,11 +199,9 @@ export const picksRouter = router({
         ))
 
       const aiRecsUsed = logs.filter(l => l.action === 'ai_recs').length
-      const refineUsed = logs.filter(l => l.action === 'refine').length
 
       return {
         aiRecs: { used: aiRecsUsed, limit: 1 },
-        refine: { used: refineUsed, limit: 3 },
       }
     }),
 })
