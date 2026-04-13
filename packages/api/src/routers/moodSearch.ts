@@ -309,7 +309,7 @@ export const moodSearchRouter = router({
         .select({
           id: moodSearches.id,
           title: moodSearches.title,
-          resultCount: sql<number>`json_array_length(${moodSearches.resultTmdbIds})`,
+          resultCount: sql<number>`jsonb_array_length(${moodSearches.resultTmdbIds})`,
           createdAt: moodSearches.createdAt,
         })
         .from(moodSearches)
