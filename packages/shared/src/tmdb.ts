@@ -194,3 +194,96 @@ export async function searchTMDB(
   }
   return results
 }
+
+export interface DiscoverFilters {
+  mediaType: 'movie' | 'tv'
+  genres?: number[]
+  yearMin?: number
+  yearMax?: number
+  sortBy?: string
+  keywords?: string
+  voteAverageMin?: number
+}
+
+// TMDB genre name -> ID mapping (covers the main ones)
+export const TMDB_GENRE_MAP: Record<string, number> = {
+  action: 28, adventure: 12, animation: 16, comedy: 35, crime: 80,
+  documentary: 99, drama: 18, family: 10751, fantasy: 14, history: 36,
+  horror: 27, music: 10402, mystery: 9648, romance: 10749,
+  'science fiction': 878, 'sci-fi': 878, thriller: 53, war: 10752, western: 37,
+  // TV-specific genre IDs
+  'action & adventure': 10759, 'sci-fi & fantasy': 10765, 'war & politics': 10768,
+  kids: 10762, news: 10763, reality: 10764, soap: 10766, talk: 10767,
+}
+
+export async function discoverTMDB(
+  filters: DiscoverFilters,
+  readAccessToken: string
+): Promise<MediaItem[]> {
+  const endpoint = filters.mediaType === 'movie' ? 'discover/movie' : 'discover/tv'
+  const params = new URLSearchParams({
+    include_adult: 'false',
+    sort_by: filters.sortBy ?? 'popularity.desc',
+    'vote_count.gte': '50',
+    language: 'en-US',
+    page: '1',
+  })
+
+  if (filters.genres && filters.genres.length > 0) {
+    params.set('with_genres', filters.genres.join(','))
+  }
+
+  const dateField = filters.mediaType === 'movie' ? 'primary_release_date' : 'first_air_date'
+  if (filters.yearMin) {
+    params.set(`${dateField}.gte`, `${filters.yearMin}-01-01`)
+  }
+  if (filters.yearMax) {
+    params.set(`${dateField}.lte`, `${filters.yearMax}-12-31`)
+  }
+  if (filters.voteAverageMin) {
+    params.set('vote_average.gte', String(filters.voteAverageMin))
+  }
+
+  const url = `${TMDB_BASE}/${endpoint}?${params.toString()}`
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${readAccessToken}` },
+  })
+  if (!res.ok) throw new Error(`TMDB discover failed: ${res.status}`)
+  const data = await res.json()
+
+  const results: MediaItem[] = []
+  for (const item of (data.results ?? []).slice(0, 20)) {
+    const title = filters.mediaType === 'movie' ? item.title : item.name
+    const dateStr = filters.mediaType === 'movie' ? item.release_date : item.first_air_date
+    const genreIds: number[] = item.genre_ids ?? []
+    // Reverse-map genre IDs to names
+    const reverseGenreMap = Object.fromEntries(
+      Object.entries(TMDB_GENRE_MAP).map(([name, id]) => [id, name])
+    )
+    const genreNames = genreIds.map(id => reverseGenreMap[id] ?? '').filter(Boolean)
+
+    results.push({
+      tmdbId: item.id,
+      mediaType: filters.mediaType,
+      title: title ?? 'Untitled',
+      posterPath: item.poster_path ?? null,
+      backdropPath: item.backdrop_path ?? null,
+      year: dateStr ? new Date(dateStr).getFullYear() : null,
+      genres: genreNames,
+      tagline: null,
+      overview: item.overview ?? '',
+      runtime: null,
+      voteAverage: item.vote_average ?? null,
+      director: null,
+      createdBy: [],
+      cast: [],
+      contentRating: null,
+      numberOfSeasons: null,
+      numberOfEpisodes: null,
+      statusText: null,
+      network: null,
+      watchProviders: {},
+    })
+  }
+  return results
+}
