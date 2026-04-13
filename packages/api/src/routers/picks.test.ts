@@ -26,7 +26,13 @@ const { mockDb, resetMockDbChain } = vi.hoisted(() => {
   return { mockDb, resetMockDbChain }
 })
 
-vi.mock('@scout/shared', () => ({ fetchTrending: vi.fn() }))
+vi.mock('@scout/shared', () => ({
+  fetchTrending: vi.fn(),
+  discoverTMDB: vi.fn().mockResolvedValue([
+    { tmdbId: 680, mediaType: 'movie', title: 'Pulp Fiction', year: 1994, genres: ['Drama'], overview: 'A great film' },
+  ]),
+  TMDB_GENRE_MAP: { 'drama': 18, 'action': 28 },
+}))
 
 vi.mock('@scout/db', () => ({
   db: mockDb,
@@ -45,6 +51,12 @@ vi.mock('@scout/ai', () => ({
       { tmdbId: 550, mediaType: 'movie', id: '', userId: 'user-1', generatedAt: new Date().toISOString(), status: 'pending' },
       { tmdbId: 1396, mediaType: 'tv', id: '', userId: 'user-1', generatedAt: new Date().toISOString(), status: 'pending' },
     ]),
+    extractSearchFilters: vi.fn().mockResolvedValue({
+      mediaType: 'any',
+      genres: ['Drama'],
+      yearMin: undefined,
+      yearMax: undefined,
+    }),
     refineRecommendations: vi.fn().mockResolvedValue([
       { tmdbId: 680, mediaType: 'movie', id: '', userId: 'user-1', generatedAt: new Date().toISOString(), status: 'pending' },
     ]),
