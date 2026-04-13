@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useRef } from 'react'
 import {
   View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet,
-  ActivityIndicator, SafeAreaView, KeyboardAvoidingView, Platform,
+  ActivityIndicator, KeyboardAvoidingView, Platform,
   Animated, PanResponder,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { colors, typography, spacing, radius, shadows } from '../theme'
 import { trpc } from '../lib/trpc'
