@@ -9,7 +9,6 @@ import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { trpc } from '../lib/trpc'
 import { DismissSheet } from '../components/DismissSheet'
-import { ScoutChatBar } from '../components/ScoutChatBar'
 import { RatingModal } from '../components/RatingModal'
 import { SurveyCard } from '../components/SurveyCard'
 import type { RootStackParamList } from '../navigation/MainNavigator'
@@ -156,13 +155,8 @@ export function PicksScreen() {
   const tasteProfileMutation = trpc.tasteProfile.updateFromRating.useMutation()
   const tagsQuery = trpc.tmdb.generateTags.useQuery(
     { tmdbId: ratingTarget?.tmdbId ?? 0, mediaType: ratingTarget?.mediaType ?? 'movie' },
-    { enabled: !!ratingTarget }
+    { enabled: !!ratingTarget, staleTime: Infinity }
   )
-  const refineMutation = trpc.picks.refine.useMutation({
-    onSuccess: (data) => {
-      utils.picks.aiRecs.setData(undefined, data)
-    },
-  })
 
   // Use AI recs when available, fall back to trending
   const baseItems: MediaItem[] = (aiRecsQuery.data?.length ?? 0) > 0
@@ -170,7 +164,7 @@ export function PicksScreen() {
     : (trendingQuery.data ?? [])
 
   const watchlistedSet = new Set(
-    watchlistQuery.data?.filter(i => i.status === 'saved').map(i => `${i.tmdbId}-${i.mediaType}`) ?? []
+    watchlistQuery.data?.map(i => `${i.tmdbId}-${i.mediaType}`) ?? []
   )
 
   const filteredItems = baseItems.filter(i => {
@@ -267,10 +261,6 @@ export function PicksScreen() {
   const hasError = aiRecsQuery.isError && trendingQuery.isError
   if (hasError) return <View style={styles.centered}><Text style={styles.errorText}>Could not load picks.</Text></View>
 
-  const refineUsed = usageQuery.data?.refine.used ?? 0
-  const refineLimit = usageQuery.data?.refine.limit ?? 3
-  const refineLeft = refineLimit - refineUsed
-
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -279,21 +269,6 @@ export function PicksScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.headerRow}>
         <Text style={styles.header}>Picks</Text>
-        {usageQuery.data && (
-          <View style={styles.usageBadge}>
-            <Text style={styles.usageText}>
-              {refineLeft}/{refineLimit} refines left
-            </Text>
-            <View style={styles.usageBar}>
-              {Array.from({ length: refineLimit }).map((_, i) => (
-                <View
-                  key={i}
-                  style={[styles.usagePip, i < refineLeft ? styles.usagePipFilled : styles.usagePipEmpty]}
-                />
-              ))}
-            </View>
-          </View>
-        )}
       </View>
       <View style={styles.feedContainer}>
       <FlatList
@@ -378,10 +353,19 @@ export function PicksScreen() {
         }}
       />
       </View>
-      <ScoutChatBar
-        onSubmit={message => refineMutation.mutate({ message })}
-        isPending={refineMutation.isPending}
-      />
+      <View style={styles.moodSearchFooter}>
+        <TouchableOpacity
+          style={styles.moodSearchButton}
+          onPress={() => navigation.navigate('MoodSearch')}
+        >
+          <Text style={styles.moodSearchButtonText}>What are you in the mood for?</Text>
+        </TouchableOpacity>
+        {usageQuery.data && (
+          <Text style={styles.moodSearchCounter}>
+            {(usageQuery.data?.moodSearch?.limit ?? 3) - (usageQuery.data?.moodSearch?.used ?? 0)} searches left today
+          </Text>
+        )}
+      </View>
       <DismissSheet
         visible={!!dismissTarget} title={dismissTarget?.title ?? ''}
         onClose={() => setDismissTarget(null)} onNotNow={handleDismissNotNow}
@@ -399,14 +383,8 @@ export function PicksScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   centered: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingTop: spacing.xs, marginBottom: spacing.md },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', paddingHorizontal: spacing.lg, paddingTop: spacing.xs, marginBottom: spacing.md },
   header: { ...typography.heading, color: colors.text },
-  usageBadge: { alignItems: 'flex-end', gap: spacing.xs },
-  usageText: { ...typography.micro, color: colors.textMuted },
-  usageBar: { flexDirection: 'row', gap: spacing.xs },
-  usagePip: { width: 20, height: 4, borderRadius: 2 },
-  usagePipFilled: { backgroundColor: colors.gold },
-  usagePipEmpty: { backgroundColor: colors.border },
   list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
   card: {
     backgroundColor: colors.surfaceRaised,
@@ -445,4 +423,31 @@ const styles = StyleSheet.create({
   },
   onboardingTitle: { color: colors.gold, fontSize: 13, fontWeight: '700', marginBottom: spacing.sm },
   onboardingBody: { ...typography.caption, color: colors.textMuted },
+  moodSearchFooter: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.bg,
+  },
+  moodSearchButton: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+  },
+  moodSearchButtonText: {
+    ...typography.body,
+    color: colors.textMuted,
+    fontSize: 13,
+  },
+  moodSearchCounter: {
+    ...typography.micro,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+  },
 })
