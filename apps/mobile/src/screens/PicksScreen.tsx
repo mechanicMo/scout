@@ -333,10 +333,10 @@ export function PicksScreen() {
                   {item.overview.length > 0 && <Text style={styles.overview} numberOfLines={2}>{item.overview}</Text>}
                   <View style={styles.actions}>
                     <TouchableOpacity
-                      style={styles.notForMeButton}
+                      style={styles.passButton}
                       onPress={() => setDismissTarget(dismissPayload)}
                     >
-                      <Text style={styles.notForMeText}>Pass</Text>
+                      <Text style={styles.passText}>Pass</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.addButton, inWatchlist && styles.addButtonSaved]}
@@ -406,11 +406,11 @@ const styles = StyleSheet.create({
   meta: { ...typography.caption, color: colors.textMuted, marginBottom: spacing.xs },
   overview: { ...typography.body, color: colors.textSoft, marginBottom: spacing.md },
   actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.xs },
-  notForMeButton: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border },
-  notForMeText: { color: colors.textMuted, fontSize: 12 },
-  addButton: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.gold, alignItems: 'center', justifyContent: 'center' },
+  passButton: { flex: 1, paddingVertical: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+  passText: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
+  addButton: { flex: 1, paddingVertical: spacing.sm, borderRadius: radius.md, backgroundColor: colors.gold, alignItems: 'center' },
   addButtonSaved: { backgroundColor: colors.border },
-  addButtonText: { color: colors.bg, fontSize: 16, fontWeight: '800', lineHeight: 18 },
+  addButtonText: { fontSize: 12, fontWeight: '700', color: colors.bg },
   errorText: { color: colors.error, fontSize: 14, textAlign: 'center', paddingHorizontal: spacing.lg },
   feedContainer: { flex: 1 },
   onboardingBanner: {

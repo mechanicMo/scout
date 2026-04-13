@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react'
 import {
-  View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet,
+  View, Text, FlatList, Image, TouchableOpacity, TextInput, StyleSheet,
   ActivityIndicator, KeyboardAvoidingView, Platform,
   Animated, PanResponder,
 } from 'react-native'
@@ -9,6 +9,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { colors, typography, spacing, radius, shadows } from '../theme'
 import { trpc } from '../lib/trpc'
 import type { RootStackParamList } from '../navigation/MainNavigator'
+
+const POSTER_BASE = 'https://image.tmdb.org/t/p/w185'
 
 type Nav = NativeStackNavigationProp<RootStackParamList>
 
@@ -276,9 +278,15 @@ export function MoodSearchScreen({ navigation }: MoodSearchScreenProps) {
                   onPress={() => navigation.navigate('MediaDetail', { tmdbId: item.tmdbId, mediaType: item.mediaType })}
                   activeOpacity={0.75}
                 >
+                  {item.posterPath ? (
+                    <Image source={{ uri: `${POSTER_BASE}${item.posterPath}` }} style={styles.poster} />
+                  ) : (
+                    <View style={[styles.poster, styles.posterFallback]} />
+                  )}
                   <View style={styles.info}>
                     <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
-                    <Text style={styles.meta}>{item.year ? item.year + ' · ' : ''}{item.mediaType === 'tv' ? 'TV' : 'Movie'}</Text>
+                    <Text style={styles.meta}>{[item.year, item.mediaType === 'tv' ? 'TV' : 'Movie'].filter(Boolean).join(' · ')}</Text>
+                    {item.overview?.length > 0 && <Text style={styles.overview} numberOfLines={2}>{item.overview}</Text>}
                     <View style={styles.actions}>
                       <TouchableOpacity style={styles.passButton}>
                         <Text style={styles.passText}>Pass</Text>
@@ -366,11 +374,14 @@ const styles = StyleSheet.create({
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
   card: { backgroundColor: colors.surfaceRaised, marginBottom: spacing.xs, borderRadius: radius.md, ...shadows.md, overflow: 'hidden' },
-  cardInner: { padding: spacing.md },
+  cardInner: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: spacing.md, paddingHorizontal: spacing.md },
+  poster: { width: 64, height: 96, borderRadius: radius.sm, marginRight: spacing.md },
+  posterFallback: { backgroundColor: colors.border },
   info: { flex: 1 },
-  title: { ...typography.body, color: colors.text, fontWeight: '600', marginBottom: spacing.xs },
-  meta: { fontSize: 11, color: colors.textMuted, marginBottom: spacing.sm },
-  actions: { flexDirection: 'row', gap: spacing.sm },
+  title: { ...typography.title, color: colors.text, marginBottom: 2 },
+  meta: { ...typography.caption, color: colors.textMuted, marginBottom: spacing.xs },
+  overview: { ...typography.body, color: colors.textSoft, marginBottom: spacing.md },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.xs },
   passButton: { flex: 1, paddingVertical: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
   passText: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
   addButton: { flex: 1, paddingVertical: spacing.sm, borderRadius: radius.md, backgroundColor: colors.gold, alignItems: 'center' },
