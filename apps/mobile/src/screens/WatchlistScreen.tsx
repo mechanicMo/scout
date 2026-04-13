@@ -8,6 +8,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { trpc } from '../lib/trpc'
 import { DismissSheet } from '../components/DismissSheet'
 import { RatingModal } from '../components/RatingModal'
+import { EpisodeStepper } from '../components/EpisodeStepper'
+import { WatchingStatusModal } from '../components/WatchingStatusModal'
 import type { RootStackParamList } from '../navigation/MainNavigator'
 import { colors, typography, spacing, radius, shadows } from '../theme'
 
@@ -38,13 +40,17 @@ type ActionTarget = {
 
 export function WatchlistScreen() {
   const navigation = useNavigation<Nav>()
-  const [activeTab, setActiveTab] = useState<'upcoming' | 'watched'>('upcoming')
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'in-progress' | 'watched'>('upcoming')
   const [dismissTarget, setDismissTarget] = useState<ActionTarget | null>(null)
   const [ratingTarget, setRatingTarget] = useState<ActionTarget | null>(null)
   const [sortBy, setSortBy] = useState<SortOption>('added-newest')
   const [filterType, setFilterType] = useState<TypeFilter>('all')
   const [filterGenres, setFilterGenres] = useState<string[]>([])
   const [showGenreFilter, setShowGenreFilter] = useState(false)
+  const [episodeUpdateTarget, setEpisodeUpdateTarget] = useState<string | null>(null)
+  const [manualSetTarget, setManualSetTarget] = useState<{
+    id: string; mediaType: 'movie' | 'tv'; title: string; totalSeasons: number | null
+  } | null>(null)
 
   const utils = trpc.useUtils()
   const listQuery = trpc.watchlist.list.useQuery({ status: 'saved' })
@@ -58,6 +64,12 @@ export function WatchlistScreen() {
   })
   const addHistoryMutation = trpc.watchHistory.add.useMutation()
   const tasteProfileMutation = trpc.tasteProfile.updateFromRating.useMutation()
+  const updateWatchingMutation = trpc.watchlist.updateWatching.useMutation({
+    onSuccess: () => {
+      utils.watchlist.list.invalidate()
+      setEpisodeUpdateTarget(null)
+    },
+  })
   const tagsQuery = trpc.tmdb.generateTags.useQuery(
     { tmdbId: ratingTarget?.tmdbId ?? 0, mediaType: ratingTarget?.mediaType ?? 'movie' },
     { enabled: !!ratingTarget }
@@ -119,6 +131,9 @@ export function WatchlistScreen() {
   function handleRatingSubmit(score: number, tags: string[]) {
     if (!ratingTarget) return
     const target = ratingTarget
+    // Close modal immediately
+    setRatingTarget(null)
+    // Continue API calls in background
     addHistoryMutation.mutate(
       { tmdbId: target.tmdbId, mediaType: target.mediaType, score, tags },
       {
@@ -127,7 +142,6 @@ export function WatchlistScreen() {
             tasteProfileMutation.mutate({ score, genres: target.genres })
           }
           removeMutation.mutate({ id: target.id })
-          setRatingTarget(null)
           historyQuery.refetch()
           listQuery.refetch()
         },
