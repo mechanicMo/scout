@@ -1,7 +1,7 @@
 import { protectedProcedure, router } from '../trpc'
 import { z } from 'zod'
 import { db, moodSearches, users, tasteProfiles, usageLogs } from '@scout/db'
-import { and, eq, gte, desc, count } from 'drizzle-orm'
+import { and, eq, gte, desc, count, sql } from 'drizzle-orm'
 import { GroqProvider } from '@scout/ai'
 import { discoverTMDB, TMDB_GENRE_MAP } from '@scout/shared'
 import { TRPCError } from '@trpc/server'
@@ -222,6 +222,142 @@ export const moodSearchRouter = router({
         title: inserted.title,
         results: enriched,
       }
+    }),
+
+  refresh: protectedProcedure
+    .input(z.object({ searchId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.userId
+      await checkRateLimit(userId)
+
+      const [search] = await db
+        .select()
+        .from(moodSearches)
+        .where(and(eq(moodSearches.id, input.searchId), eq(moodSearches.userId, userId)))
+        .limit(1)
+
+      if (!search) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Search not found',
+        })
+      }
+
+      const groq = new GroqProvider(getGroqKey())
+      const tmdbToken = getTMDBToken()
+
+      // Re-run the same search with fresh TMDB data
+      const filters = await groq.extractSearchFilters(search.query)
+      const discoverPool: Array<{ tmdbId: number; mediaType: string; title: string; year: number | null; genres: string[]; overview: string }> = []
+      const mediaTypes: Array<'movie' | 'tv'> = filters.mediaType === 'any'
+        ? ['movie', 'tv']
+        : [filters.mediaType as 'movie' | 'tv']
+
+      for (const mt of mediaTypes) {
+        const genreIds = filters.genres
+          .map(g => TMDB_GENRE_MAP[g.toLowerCase()])
+          .filter((id): id is number => id !== undefined)
+
+        const results = await discoverTMDB({
+          mediaType: mt,
+          genres: genreIds.length > 0 ? genreIds : undefined,
+          yearMin: filters.yearMin,
+          yearMax: filters.yearMax,
+        }, tmdbToken)
+
+        for (const r of results) {
+          discoverPool.push({
+            tmdbId: r.tmdbId,
+            mediaType: r.mediaType,
+            title: r.title,
+            year: r.year,
+            genres: r.genres,
+            overview: r.overview,
+          })
+        }
+      }
+
+      const [profileRow] = await db
+        .select()
+        .from(tasteProfiles)
+        .where(eq(tasteProfiles.userId, userId))
+        .limit(1)
+
+      const profile = profileRow
+        ? {
+            id: profileRow.id,
+            userId: profileRow.userId,
+            likedGenres: profileRow.likedGenres ?? [],
+            dislikedGenres: profileRow.dislikedGenres ?? [],
+            likedThemes: profileRow.likedThemes ?? [],
+            favoriteActors: profileRow.favoriteActors ?? [],
+            services: profileRow.services ?? [],
+            notes: profileRow.notes ?? '',
+            lastUpdated: profileRow.lastUpdated.toISOString(),
+          }
+        : {
+            id: '', userId, likedGenres: [], dislikedGenres: [],
+            likedThemes: [], favoriteActors: [], services: [], notes: '',
+            lastUpdated: new Date().toISOString(),
+          }
+
+      const rawRecs = await groq.refineRecommendations(search.query, [], profile, discoverPool)
+
+      // Update the stored results and timestamp
+      await db
+        .update(moodSearches)
+        .set({
+          resultTmdbIds: JSON.stringify(
+            rawRecs.map(r => ({ tmdbId: r.tmdbId, mediaType: r.mediaType }))
+          ),
+          updatedAt: new Date(),
+        })
+        .where(eq(moodSearches.id, input.searchId))
+
+      await logUsage(userId)
+
+      const enriched = await enrichRecs(rawRecs, tmdbToken)
+      return enriched
+    }),
+
+  history: protectedProcedure
+    .query(async ({ ctx }) => {
+      const userId = ctx.userId
+      const searches = await db
+        .select({
+          id: moodSearches.id,
+          title: moodSearches.title,
+          resultCount: sql<number>`json_array_length(${moodSearches.resultTmdbIds})`,
+          createdAt: moodSearches.createdAt,
+        })
+        .from(moodSearches)
+        .where(eq(moodSearches.userId, userId))
+        .orderBy(desc(moodSearches.createdAt))
+        .limit(10)
+
+      return searches
+    }),
+
+  results: protectedProcedure
+    .input(z.object({ searchId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.userId
+      const [search] = await db
+        .select()
+        .from(moodSearches)
+        .where(and(eq(moodSearches.id, input.searchId), eq(moodSearches.userId, userId)))
+        .limit(1)
+
+      if (!search) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Search not found',
+        })
+      }
+
+      const parsed = JSON.parse(search.resultTmdbIds as string) as Array<{ tmdbId: number; mediaType: string }>
+      const tmdbToken = getTMDBToken()
+      return enrichRecs(parsed, tmdbToken)
     }),
 })
 
