@@ -78,14 +78,21 @@ interface MoodSearchScreenProps {
 export function MoodSearchScreen({ navigation }: MoodSearchScreenProps) {
   const [selectedSearchId, setSelectedSearchId] = useState<string | null>(null)
   const [searchText, setSearchText] = useState('')
+  const [searchError, setSearchError] = useState<string | null>(null)
   const utils = trpc.useUtils()
 
   const historyQuery = trpc.moodSearch.history.useQuery()
+  const usageQuery = trpc.picks.usage.useQuery()
   const searchMutation = trpc.moodSearch.search.useMutation({
     onSuccess: (data) => {
+      setSearchError(null)
       setSelectedSearchId(data.searchId)
       setSearchText('')
       utils.moodSearch.history.invalidate()
+      utils.picks.usage.invalidate()
+    },
+    onError: (error) => {
+      setSearchError(error.message || 'Search failed. Try again.')
     },
   })
   const refreshMutation = trpc.moodSearch.refresh.useMutation({
@@ -141,21 +148,23 @@ export function MoodSearchScreen({ navigation }: MoodSearchScreenProps) {
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backText}>←</Text>
-          </TouchableOpacity>
-
           <View style={styles.inputRow}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Text style={styles.backText}>←</Text>
+            </TouchableOpacity>
             <TextInput
               style={styles.input}
               placeholder="Tell Scout what you're in the mood for..."
               placeholderTextColor={colors.textMuted}
               value={searchText}
-              onChangeText={setSearchText}
+              onChangeText={(text) => { setSearchText(text); setSearchError(null) }}
               editable={!searchMutation.isPending}
+              onSubmitEditing={handleSearch}
+              returnKeyType="search"
             />
             <TouchableOpacity
               style={[styles.sendButton, (!searchText.trim() || searchMutation.isPending) && styles.sendButtonDisabled]}
@@ -169,6 +178,12 @@ export function MoodSearchScreen({ navigation }: MoodSearchScreenProps) {
               )}
             </TouchableOpacity>
           </View>
+
+          {searchError && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText}>{searchError}</Text>
+            </View>
+          )}
 
           {historyQuery.data && historyQuery.data.length > 0 ? (
             <View style={styles.content}>
@@ -196,7 +211,12 @@ export function MoodSearchScreen({ navigation }: MoodSearchScreenProps) {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>
-              Mood search available
+              {(() => {
+                const limit = usageQuery.data?.moodSearch?.limit ?? 3
+                const used = usageQuery.data?.moodSearch?.used ?? 0
+                const left = limit - used
+                return `${left} of ${limit} searches left today`
+              })()}
             </Text>
           </View>
         </KeyboardAvoidingView>
@@ -214,6 +234,7 @@ export function MoodSearchScreen({ navigation }: MoodSearchScreenProps) {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => setSelectedSearchId(null)}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
@@ -301,9 +322,11 @@ function formatTime(dateString: string): string {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  backButton: { padding: spacing.md },
-  backText: { fontSize: 18, color: colors.textMuted },
-  inputRow: { flexDirection: 'row', paddingHorizontal: spacing.md, gap: spacing.md, marginBottom: spacing.md },
+  backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  backText: { fontSize: 24, color: colors.text },
+  inputRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, gap: spacing.sm },
+  errorBanner: { marginHorizontal: spacing.md, marginBottom: spacing.md, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, backgroundColor: '#3a1a1a', borderRadius: radius.md, borderWidth: 1, borderColor: '#5a2a2a' },
+  errorText: { color: '#ff8888', fontSize: 13 },
   input: {
     flex: 1,
     backgroundColor: colors.surface,

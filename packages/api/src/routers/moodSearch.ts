@@ -113,6 +113,7 @@ export const moodSearchRouter = router({
     .input(z.object({ message: z.string().min(1).max(500) }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.userId
+      console.log(`[mood-search] Starting search for user ${userId}: "${input.message}"`)
       await checkRateLimit(userId)
 
       const groq = new GroqProvider(getGroqKey())
@@ -150,7 +151,9 @@ export const moodSearchRouter = router({
           }
 
       // Step 2: Discover and rank results
+      console.log(`[mood-search] Extracting filters and discovering results...`)
       const idsToStore = await discoverAndRank(input.message, groq, tmdbToken, userId, profile)
+      console.log(`[mood-search] Found ${idsToStore.length} results`)
 
       // Step 3: Generate title (verbatim if <=40 chars, else build from filters)
       let title: string
