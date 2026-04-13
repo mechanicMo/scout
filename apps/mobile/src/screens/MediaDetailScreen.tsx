@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing['3xl'] },
 
   hero: { flexDirection: 'row', gap: spacing.lg, marginBottom: spacing.xxl, paddingHorizontal: spacing.lg, marginTop: spacing.lg },
-  posterContainer: { position: 'relative', overflow: 'hidden', borderRadius: radius.lg, ...shadows.sm },
+  posterContainer: { borderRadius: radius.lg },
   poster: { width: 110, height: 165, borderRadius: radius.lg },
   posterFallback: { backgroundColor: colors.surfaceHigh },
   heroInfo: { flex: 1, justifyContent: 'flex-start', gap: spacing.xs },
