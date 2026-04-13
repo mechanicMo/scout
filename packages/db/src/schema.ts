@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm'
 import {
   pgSchema, pgEnum, uuid, text, timestamp, integer, jsonb, date, primaryKey, unique, real,
 } from 'drizzle-orm/pg-core'
@@ -87,6 +88,18 @@ export const recommendations = scout.table('recommendations', {
   mediaType: mediaTypeEnum('media_type').notNull(),
   generatedAt: timestamp('generated_at').defaultNow().notNull(),
   status: recStatusEnum('status').default('pending').notNull(),
+})
+
+export const moodSearches = scout.table('mood_searches', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  query: text('query').notNull(),
+  title: text('title').notNull(),
+  resultTmdbIds: jsonb('result_tmdb_ids').notNull().default(sql`'[]'::jsonb`),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
 export const mediaCache = scout.table(
