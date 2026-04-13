@@ -200,9 +200,11 @@ export const picksRouter = router({
         ))
 
       const aiRecsUsed = logs.filter(l => l.action === 'ai_recs').length
+      const moodSearchesUsed = logs.filter(l => l.action === 'mood_search').length
 
       return {
         aiRecs: { used: aiRecsUsed, limit: 1 },
+        moodSearch: { used: moodSearchesUsed, limit: 3 },
       }
     }),
 })
