@@ -71,6 +71,21 @@ export const watchHistoryRouter = router({
       return { id: row.id }
     }),
 
+  remove: protectedProcedure
+    .input(z.object({ tmdbId: z.number().int(), mediaType: z.enum(['movie', 'tv']) }))
+    .mutation(async ({ ctx, input }) => {
+      await db
+        .delete(watchHistory)
+        .where(
+          and(
+            eq(watchHistory.userId, ctx.userId),
+            eq(watchHistory.tmdbId, input.tmdbId),
+            eq(watchHistory.mediaType, input.mediaType)
+          )
+        )
+      return { success: true }
+    }),
+
   list: protectedProcedure
     .query(async ({ ctx }) => {
       return db

@@ -36,13 +36,16 @@ export function MediaDetailScreen({ route, navigation }: Props) {
   const { tmdbId, mediaType } = route.params
   const [showWatchingModal, setShowWatchingModal] = useState(false)
   const [showRatingModal, setShowRatingModal] = useState(false)
-  const [addedItemId, setAddedItemId] = useState<string | null>(null)
+  const [watchingTargetId, setWatchingTargetId] = useState<string | null>(null)
 
   const utils = trpc.useUtils()
   const mediaQuery = trpc.tmdb.getMedia.useQuery({ tmdbId, mediaType })
   const watchlistQuery = trpc.watchlist.list.useQuery({})
   const updateWatchingMutation = trpc.watchlist.updateWatching.useMutation()
   const addHistoryMutation = trpc.watchHistory.add.useMutation()
+  const removeHistoryMutation = trpc.watchHistory.remove.useMutation({
+    onSuccess: () => { utils.watchlist.list.invalidate(); historyQuery.refetch() },
+  })
   const tasteProfileMutation = trpc.tasteProfile.updateFromRating.useMutation()
   const historyQuery = trpc.watchHistory.list.useQuery()
   const tagsQuery = trpc.tmdb.generateTags.useQuery(
@@ -53,8 +56,10 @@ export function MediaDetailScreen({ route, navigation }: Props) {
   const addMutation = trpc.watchlist.add.useMutation({
     onSuccess: (data) => {
       utils.watchlist.list.invalidate()
-      setAddedItemId(data.id)
-      setShowWatchingModal(true)
+      setWatchingTargetId(data.id)
+      if (mediaType === 'tv') {
+        setShowWatchingModal(true)
+      }
     },
   })
   const removeMutation = trpc.watchlist.remove.useMutation({
@@ -72,8 +77,7 @@ export function MediaDetailScreen({ route, navigation }: Props) {
   ) ?? false
 
   const watchlistEntry = watchlistQuery.data?.find(
-    (w: { tmdbId: number; mediaType: string; watchingStatus?: string; currentSeason?: number; currentEpisode?: number }) =>
-      w.tmdbId === tmdbId && w.mediaType === mediaType
+    (w: any) => w.tmdbId === tmdbId && w.mediaType === mediaType
   )
   const isInProgress = watchlistEntry?.watchingStatus === 'watching'
 
@@ -100,15 +104,43 @@ export function MediaDetailScreen({ route, navigation }: Props) {
   }
 
   function handleWatchingStatusSubmit(watchingStatus: 'not_started' | 'watching', season?: number, episode?: number) {
-    if (!addedItemId) return
+    const targetId = watchingTargetId ?? watchlistEntry?.id
+    if (!targetId) return
     if (watchingStatus === 'watching') {
       updateWatchingMutation.mutate(
-        { id: addedItemId, watchingStatus, currentSeason: season, currentEpisode: episode },
-        { onSuccess: () => setShowWatchingModal(false) }
+        { id: targetId, watchingStatus, currentSeason: season, currentEpisode: episode },
+        { onSuccess: () => { setShowWatchingModal(false); utils.watchlist.list.invalidate() } }
       )
     } else {
       setShowWatchingModal(false)
     }
+  }
+
+  function handleStartWatching() {
+    if (!mediaQuery.data) return
+    if (watchlistEntry) {
+      setWatchingTargetId(watchlistEntry.id)
+      setShowWatchingModal(true)
+    } else {
+      const m = mediaQuery.data
+      addMutation.mutate({
+        tmdbId: m.tmdbId,
+        mediaType: m.mediaType,
+        media: {
+          title: m.title,
+          posterPath: m.posterPath,
+          year: m.year,
+          genres: m.genres,
+          overview: m.overview,
+          runtime: m.runtime,
+          watchProviders: (m.watchProviders ?? {}) as Record<string, unknown>,
+        },
+      })
+    }
+  }
+
+  function handleRemoveWatched() {
+    removeHistoryMutation.mutate({ tmdbId, mediaType })
   }
 
   function handleRatingSubmit(score: number, tags: string[]) {
@@ -272,20 +304,30 @@ export function MediaDetailScreen({ route, navigation }: Props) {
               </TouchableOpacity>
             )}
 
-            {/* Show watched confirmation */}
+            {/* Show watched confirmation - tappable to undo */}
             {isWatched && (
-              <View style={styles.watchedBadge}>
-                <Text style={styles.watchedBadgeText}>✓ Watched</Text>
-              </View>
+              <TouchableOpacity
+                style={styles.watchedBadge}
+                onPress={handleRemoveWatched}
+                disabled={removeHistoryMutation.isPending}
+              >
+                <Text style={styles.watchedBadgeText}>
+                  {removeHistoryMutation.isPending ? 'Removing...' : '✓ Watched'}
+                </Text>
+                <Text style={styles.watchedUndoText}>Tap to undo</Text>
+              </TouchableOpacity>
             )}
 
-            {/* "I'm watching this" for TV - only if in watchlist but not yet marked watching */}
-            {mediaType === 'tv' && inWatchlist && !isInProgress && !isWatched && (
+            {/* "I'm watching this" for TV - any TV show, auto-adds to watchlist if needed */}
+            {mediaType === 'tv' && !isInProgress && !isWatched && (
               <TouchableOpacity
                 style={styles.watchingButton}
-                onPress={() => setShowWatchingModal(true)}
+                onPress={handleStartWatching}
+                disabled={addMutation.isPending}
               >
-                <Text style={styles.watchingButtonText}>I'm watching this</Text>
+                <Text style={styles.watchingButtonText}>
+                  {addMutation.isPending ? 'Adding...' : "I'm watching this"}
+                </Text>
               </TouchableOpacity>
             )}
 
@@ -482,6 +524,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   watchedBadgeText: { ...typography.caption, color: colors.gold },
+  watchedUndoText: { ...typography.micro, color: colors.textMuted, marginTop: 2 },
   watchingButton: {
     marginTop: spacing.sm,
     backgroundColor: colors.surfaceRaised,
