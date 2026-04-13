@@ -9,6 +9,7 @@ import type { RootStackParamList } from '../navigation/MainNavigator'
 import { LinearGradient } from 'expo-linear-gradient'
 import { trpc } from '../lib/trpc'
 import { WatchingStatusModal } from '../components/WatchingStatusModal'
+import { RatingModal } from '../components/RatingModal'
 import colors from '../theme/colors'
 import { typography } from '../theme/typography'
 import { spacing, radius, shadows } from '../theme/spacing'
@@ -34,12 +35,20 @@ function formatScore(score: number): string {
 export function MediaDetailScreen({ route, navigation }: Props) {
   const { tmdbId, mediaType } = route.params
   const [showWatchingModal, setShowWatchingModal] = useState(false)
+  const [showRatingModal, setShowRatingModal] = useState(false)
   const [addedItemId, setAddedItemId] = useState<string | null>(null)
 
   const utils = trpc.useUtils()
   const mediaQuery = trpc.tmdb.getMedia.useQuery({ tmdbId, mediaType })
   const watchlistQuery = trpc.watchlist.list.useQuery({})
   const updateWatchingMutation = trpc.watchlist.updateWatching.useMutation()
+  const addHistoryMutation = trpc.watchHistory.add.useMutation()
+  const tasteProfileMutation = trpc.tasteProfile.updateFromRating.useMutation()
+  const historyQuery = trpc.watchHistory.list.useQuery()
+  const tagsQuery = trpc.tmdb.generateTags.useQuery(
+    { tmdbId, mediaType },
+    { enabled: showRatingModal }
+  )
 
   const addMutation = trpc.watchlist.add.useMutation({
     onSuccess: (data) => {
@@ -57,6 +66,16 @@ export function MediaDetailScreen({ route, navigation }: Props) {
       w.tmdbId === tmdbId && w.mediaType === mediaType && w.status === 'saved'
   )
   const inWatchlist = !!watchlistItem
+
+  const isWatched = historyQuery.data?.some(
+    (h: { tmdbId: number; mediaType: string }) => h.tmdbId === tmdbId && h.mediaType === mediaType
+  ) ?? false
+
+  const watchlistEntry = watchlistQuery.data?.find(
+    (w: { tmdbId: number; mediaType: string; watchingStatus?: string; currentSeason?: number; currentEpisode?: number }) =>
+      w.tmdbId === tmdbId && w.mediaType === mediaType
+  )
+  const isInProgress = watchlistEntry?.watchingStatus === 'watching'
 
   function handleWatchlistToggle() {
     if (!mediaQuery.data) return
@@ -90,6 +109,35 @@ export function MediaDetailScreen({ route, navigation }: Props) {
     } else {
       setShowWatchingModal(false)
     }
+  }
+
+  function handleRatingSubmit(score: number, tags: string[]) {
+    if (!mediaQuery.data) return
+    const m = mediaQuery.data
+    addHistoryMutation.mutate(
+      {
+        tmdbId,
+        mediaType,
+        score,
+        tags,
+        media: {
+          title: m.title,
+          posterPath: m.posterPath,
+          year: m.year,
+          genres: m.genres,
+          overview: m.overview,
+          runtime: m.runtime,
+          watchProviders: (m.watchProviders ?? {}) as Record<string, unknown>,
+        },
+      },
+      {
+        onSuccess: () => {
+          if (m.genres.length > 0) tasteProfileMutation.mutate({ score, genres: m.genres })
+          setShowRatingModal(false)
+          historyQuery.refetch()
+        },
+      }
+    )
   }
 
   const isTogglingWatchlist = addMutation.isPending || removeMutation.isPending
@@ -219,6 +267,42 @@ export function MediaDetailScreen({ route, navigation }: Props) {
                 </Text>
               )}
             </TouchableOpacity>
+
+            {/* "I've seen this" - only show if not already in watch history */}
+            {!isWatched && (
+              <TouchableOpacity
+                style={styles.seenButton}
+                onPress={() => setShowRatingModal(true)}
+              >
+                <Text style={styles.seenButtonText}>I've seen this</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Show watched confirmation */}
+            {isWatched && (
+              <View style={styles.watchedBadge}>
+                <Text style={styles.watchedBadgeText}>✓ Watched</Text>
+              </View>
+            )}
+
+            {/* "I'm watching this" for TV - only if in watchlist but not yet marked watching */}
+            {mediaType === 'tv' && inWatchlist && !isInProgress && !isWatched && (
+              <TouchableOpacity
+                style={styles.watchingButton}
+                onPress={() => setShowWatchingModal(true)}
+              >
+                <Text style={styles.watchingButtonText}>I'm watching this</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Show in-progress status */}
+            {isInProgress && (
+              <View style={styles.progressBadge}>
+                <Text style={styles.progressBadgeText}>
+                  Watching{watchlistEntry?.currentSeason ? ` · S${watchlistEntry.currentSeason}` : ''}{watchlistEntry?.currentEpisode ? ` E${watchlistEntry.currentEpisode}` : ''}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -294,6 +378,15 @@ export function MediaDetailScreen({ route, navigation }: Props) {
         onClose={() => setShowWatchingModal(false)}
         onSubmit={handleWatchingStatusSubmit}
         isPending={updateWatchingMutation.isPending}
+      />
+
+      <RatingModal
+        visible={showRatingModal}
+        title={mediaQuery.data?.title ?? ''}
+        tags={tagsQuery.data ?? mediaQuery.data?.genres ?? []}
+        onClose={() => setShowRatingModal(false)}
+        onSubmit={handleRatingSubmit}
+        isPending={addHistoryMutation.isPending}
       />
     </SafeAreaView>
   )
@@ -378,6 +471,41 @@ const styles = StyleSheet.create({
   providerItem: { alignItems: 'center', width: 56 },
   providerLogo: { width: 40, height: 40, borderRadius: radius.md, marginBottom: spacing.sm, backgroundColor: colors.surfaceRaised, ...shadows.sm },
   providerName: { ...typography.micro, textAlign: 'center', color: colors.textMuted },
+
+  seenButton: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  seenButtonText: { ...typography.button, color: colors.text, fontSize: 13 },
+  watchedBadge: {
+    marginTop: spacing.sm,
+    paddingVertical: spacing.xs,
+    alignItems: 'center',
+  },
+  watchedBadgeText: { ...typography.caption, color: colors.gold },
+  watchingButton: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.gold,
+  },
+  watchingButtonText: { ...typography.button, color: colors.gold, fontSize: 13 },
+  progressBadge: {
+    marginTop: spacing.sm,
+    paddingVertical: spacing.xs,
+    alignItems: 'center',
+  },
+  progressBadgeText: { ...typography.caption, color: colors.textMuted },
 
   errorText: { ...typography.body, color: colors.error, textAlign: 'center', marginTop: spacing['3xl'] },
 })
