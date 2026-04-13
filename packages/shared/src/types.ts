@@ -70,6 +70,13 @@ export interface Recommendation {
   media?: MediaItem
 }
 
+export interface MoodSearch {
+  id: string
+  title: string
+  resultCount: number
+  createdAt: string
+}
+
 export interface SurveyQuestion {
   question: string
   options: string[]
