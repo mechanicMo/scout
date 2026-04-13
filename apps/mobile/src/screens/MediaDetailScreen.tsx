@@ -58,7 +58,11 @@ export function MediaDetailScreen({ route, navigation }: Props) {
       utils.watchlist.list.invalidate()
       setWatchingTargetId(data.id)
       if (mediaType === 'tv') {
-        setShowWatchingModal(true)
+        // Auto-set to S1E1 in-progress
+        updateWatchingMutation.mutate(
+          { id: data.id, watchingStatus: 'watching', currentSeason: 1, currentEpisode: 1 },
+          { onSuccess: () => utils.watchlist.list.invalidate() }
+        )
       }
     },
   })
@@ -106,23 +110,23 @@ export function MediaDetailScreen({ route, navigation }: Props) {
   function handleWatchingStatusSubmit(watchingStatus: 'not_started' | 'watching', season?: number, episode?: number) {
     const targetId = watchingTargetId ?? watchlistEntry?.id
     if (!targetId) return
-    if (watchingStatus === 'watching') {
-      updateWatchingMutation.mutate(
-        { id: targetId, watchingStatus, currentSeason: season, currentEpisode: episode },
-        { onSuccess: () => { setShowWatchingModal(false); utils.watchlist.list.invalidate() } }
-      )
-    } else {
-      setShowWatchingModal(false)
-    }
+    updateWatchingMutation.mutate(
+      { id: targetId, watchingStatus, currentSeason: season, currentEpisode: episode },
+      { onSuccess: () => { setShowWatchingModal(false); utils.watchlist.list.invalidate() } }
+    )
   }
 
   function handleStartWatching() {
     if (!mediaQuery.data) return
+    const m = mediaQuery.data
     if (watchlistEntry) {
-      setWatchingTargetId(watchlistEntry.id)
-      setShowWatchingModal(true)
+      // Already in watchlist - just mark as watching S1E1
+      updateWatchingMutation.mutate(
+        { id: watchlistEntry.id, watchingStatus: 'watching', currentSeason: 1, currentEpisode: 1 },
+        { onSuccess: () => utils.watchlist.list.invalidate() }
+      )
     } else {
-      const m = mediaQuery.data
+      // Add to watchlist first, then mark as watching in onSuccess
       addMutation.mutate({
         tmdbId: m.tmdbId,
         mediaType: m.mediaType,
@@ -137,6 +141,11 @@ export function MediaDetailScreen({ route, navigation }: Props) {
         },
       })
     }
+  }
+
+  function handleEditProgress() {
+    setWatchingTargetId(watchlistEntry?.id ?? null)
+    setShowWatchingModal(true)
   }
 
   function handleRemoveWatched() {
@@ -318,26 +327,27 @@ export function MediaDetailScreen({ route, navigation }: Props) {
               </TouchableOpacity>
             )}
 
-            {/* "I'm watching this" for TV - any TV show, auto-adds to watchlist if needed */}
+            {/* "I'm watching this" for TV - auto-adds to watchlist as S1E1 */}
             {mediaType === 'tv' && !isInProgress && !isWatched && (
               <TouchableOpacity
                 style={styles.watchingButton}
                 onPress={handleStartWatching}
-                disabled={addMutation.isPending}
+                disabled={addMutation.isPending || updateWatchingMutation.isPending}
               >
                 <Text style={styles.watchingButtonText}>
-                  {addMutation.isPending ? 'Adding...' : "I'm watching this"}
+                  {(addMutation.isPending || updateWatchingMutation.isPending) ? 'Adding...' : "I'm watching this"}
                 </Text>
               </TouchableOpacity>
             )}
 
-            {/* Show in-progress status */}
+            {/* Show in-progress status - tappable to edit */}
             {isInProgress && (
-              <View style={styles.progressBadge}>
-                <Text style={styles.progressBadgeText}>
-                  Watching{watchlistEntry?.currentSeason ? ` · S${watchlistEntry.currentSeason}` : ''}{watchlistEntry?.currentEpisode ? ` E${watchlistEntry.currentEpisode}` : ''}
+              <TouchableOpacity style={styles.progressButton} onPress={handleEditProgress}>
+                <Text style={styles.progressButtonText}>
+                  S{watchlistEntry?.currentSeason ?? 1} · E{watchlistEntry?.currentEpisode ?? 1}
                 </Text>
-              </View>
+                <Text style={styles.progressEditHint}>Tap to edit</Text>
+              </TouchableOpacity>
             )}
           </View>
         </View>
@@ -411,6 +421,8 @@ export function MediaDetailScreen({ route, navigation }: Props) {
         mediaType={mediaType}
         title={mediaQuery.data?.title ?? ''}
         totalSeasons={mediaQuery.data?.numberOfSeasons ?? null}
+        initialSeason={watchlistEntry?.currentSeason ?? null}
+        initialEpisode={watchlistEntry?.currentEpisode ?? null}
         onClose={() => setShowWatchingModal(false)}
         onSubmit={handleWatchingStatusSubmit}
         isPending={updateWatchingMutation.isPending}
@@ -536,12 +548,18 @@ const styles = StyleSheet.create({
     borderColor: colors.gold,
   },
   watchingButtonText: { ...typography.button, color: colors.gold, fontSize: 13 },
-  progressBadge: {
+  progressButton: {
     marginTop: spacing.sm,
-    paddingVertical: spacing.xs,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.gold,
   },
-  progressBadgeText: { ...typography.caption, color: colors.textMuted },
+  progressButtonText: { ...typography.button, color: colors.gold, fontSize: 14 },
+  progressEditHint: { ...typography.micro, color: colors.textMuted, marginTop: 2 },
 
   errorText: { ...typography.body, color: colors.error, textAlign: 'center', marginTop: spacing['3xl'] },
 })

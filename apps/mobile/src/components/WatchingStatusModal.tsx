@@ -11,33 +11,39 @@ type Props = {
   mediaType: 'movie' | 'tv'
   title: string
   totalSeasons?: number | null
+  initialSeason?: number | null
+  initialEpisode?: number | null
   onClose: () => void
   onSubmit: (watchingStatus: 'not_started' | 'watching', season?: number, episode?: number) => void
   isPending?: boolean
 }
 
 export function WatchingStatusModal({
-  visible, mediaType, title, totalSeasons, onClose, onSubmit, isPending,
+  visible, mediaType, title, totalSeasons, initialSeason, initialEpisode, onClose, onSubmit, isPending,
 }: Props) {
-  const [isWatching, setIsWatching] = useState(false)
+  const isEditing = initialSeason != null || initialEpisode != null
   const [season, setSeason] = useState('')
   const [episode, setEpisode] = useState('')
 
-  function handleSubmit() {
-    if (isWatching && mediaType === 'tv') {
-      const s = season ? parseInt(season, 10) : 1
-      const e = episode ? parseInt(episode, 10) : 1
-      onSubmit('watching', s, e)
-    } else {
-      onSubmit(isWatching ? 'watching' : 'not_started')
+  // Sync initial values when modal opens
+  React.useEffect(() => {
+    if (visible) {
+      setSeason(initialSeason ? String(initialSeason) : '')
+      setEpisode(initialEpisode ? String(initialEpisode) : '')
     }
-    setIsWatching(false)
-    setSeason('')
-    setEpisode('')
+  }, [visible, initialSeason, initialEpisode])
+
+  function handleSubmit() {
+    const s = season ? parseInt(season, 10) : 1
+    const e = episode ? parseInt(episode, 10) : 1
+    onSubmit('watching', s, e)
+  }
+
+  function handleStopWatching() {
+    onSubmit('not_started')
   }
 
   function handleClose() {
-    setIsWatching(false)
     setSeason('')
     setEpisode('')
     onClose()
@@ -47,58 +53,35 @@ export function WatchingStatusModal({
     <Modal visible={visible} animationType="fade" transparent>
       <SafeAreaView style={styles.overlay}>
         <View style={styles.container}>
-          <Text style={styles.title}>Already watching?</Text>
+          <Text style={styles.title}>{isEditing ? 'Edit progress' : 'Track progress'}</Text>
           <Text style={styles.subtitle}>{title}</Text>
 
-          <View style={styles.options}>
-            <TouchableOpacity
-              style={[styles.option, !isWatching && styles.optionActive]}
-              onPress={() => setIsWatching(false)}
-              disabled={isPending}
-            >
-              <Text style={[styles.optionText, !isWatching && styles.optionTextActive]}>
-                Not yet
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.option, isWatching && styles.optionActive]}
-              onPress={() => setIsWatching(true)}
-              disabled={isPending}
-            >
-              <Text style={[styles.optionText, isWatching && styles.optionTextActive]}>
-                Yes, watching
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {isWatching && mediaType === 'tv' && (
-            <View style={styles.seasonEpisodeContainer}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Season</Text>
-                <TextInput
-                  style={styles.input}
-                  value={season}
-                  onChangeText={setSeason}
-                  keyboardType="number-pad"
-                  placeholder="1"
-                  placeholderTextColor={colors.textMuted}
-                  editable={!isPending}
-                />
-              </View>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Episode</Text>
-                <TextInput
-                  style={styles.input}
-                  value={episode}
-                  onChangeText={setEpisode}
-                  keyboardType="number-pad"
-                  placeholder="1"
-                  placeholderTextColor={colors.textMuted}
-                  editable={!isPending}
-                />
-              </View>
+          <View style={styles.seasonEpisodeContainer}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Season</Text>
+              <TextInput
+                style={styles.input}
+                value={season}
+                onChangeText={setSeason}
+                keyboardType="number-pad"
+                placeholder="1"
+                placeholderTextColor={colors.textMuted}
+                editable={!isPending}
+              />
             </View>
-          )}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Episode</Text>
+              <TextInput
+                style={styles.input}
+                value={episode}
+                onChangeText={setEpisode}
+                keyboardType="number-pad"
+                placeholder="1"
+                placeholderTextColor={colors.textMuted}
+                editable={!isPending}
+              />
+            </View>
+          </View>
 
           <View style={styles.buttons}>
             <TouchableOpacity
@@ -116,10 +99,20 @@ export function WatchingStatusModal({
               {isPending ? (
                 <ActivityIndicator color={colors.bg} size="small" />
               ) : (
-                <Text style={styles.confirmButtonText}>Done</Text>
+                <Text style={styles.confirmButtonText}>Save</Text>
               )}
             </TouchableOpacity>
           </View>
+
+          {isEditing && (
+            <TouchableOpacity
+              style={styles.stopButton}
+              onPress={handleStopWatching}
+              disabled={isPending}
+            >
+              <Text style={styles.stopButtonText}>Stop watching</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </SafeAreaView>
     </Modal>
@@ -152,33 +145,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 14,
     marginBottom: spacing.lg,
-  },
-  options: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  option: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-  },
-  optionActive: {
-    backgroundColor: colors.gold,
-    borderColor: colors.gold,
-  },
-  optionText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  optionTextActive: {
-    color: colors.bg,
-    fontWeight: '700',
   },
   seasonEpisodeContainer: {
     flexDirection: 'row',
@@ -231,5 +197,15 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     ...typography.button,
     color: colors.bg,
+  },
+  stopButton: {
+    marginTop: spacing.lg,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  stopButtonText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    textDecorationLine: 'underline',
   },
 })
