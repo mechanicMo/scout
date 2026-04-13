@@ -6,6 +6,7 @@ import { watchHistoryRouter } from './routers/watchHistory'
 import { tasteProfileRouter } from './routers/tasteProfile'
 import { picksRouter } from './routers/picks'
 import { surveyRouter } from './routers/survey'
+import { moodSearchRouter } from './routers/moodSearch'
 
 export const appRouter = router({
   tmdb: tmdbRouter,
@@ -15,6 +16,7 @@ export const appRouter = router({
   tasteProfile: tasteProfileRouter,
   picks: picksRouter,
   survey: surveyRouter,
+  moodSearch: moodSearchRouter,
 })
 
 export type AppRouter = typeof appRouter
