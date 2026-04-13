@@ -95,6 +95,12 @@ export function WatchlistScreen() {
     return items
   }, [listQuery.data, filterType, filterGenres, sortBy])
 
+  const inProgressItems = useMemo(() => {
+    return (listQuery.data ?? []).filter(
+      (item: { watchingStatus: string }) => item.watchingStatus === 'watching'
+    )
+  }, [listQuery.data])
+
   function cycleSortOption() {
     const idx = SORT_OPTIONS.indexOf(sortBy)
     setSortBy(SORT_OPTIONS[(idx + 1) % SORT_OPTIONS.length])
@@ -149,6 +155,46 @@ export function WatchlistScreen() {
     )
   }
 
+  function handleNextEpisode(item: {
+    id: string; currentSeason: number | null; currentEpisode: number | null;
+    numberOfEpisodes: number | null; numberOfSeasons: number | null
+  }) {
+    const season = item.currentSeason ?? 1
+    const episode = item.currentEpisode ?? 1
+    const totalEps = item.numberOfEpisodes ?? 999
+    const totalSeasons = item.numberOfSeasons ?? 999
+
+    let nextSeason = season
+    let nextEpisode = episode + 1
+
+    // Simple season boundary: if past total episodes, advance season
+    if (nextEpisode > totalEps && season < totalSeasons) {
+      nextSeason = season + 1
+      nextEpisode = 1
+    }
+
+    setEpisodeUpdateTarget(item.id)
+    updateWatchingMutation.mutate({
+      id: item.id,
+      watchingStatus: 'watching',
+      currentSeason: nextSeason,
+      currentEpisode: nextEpisode,
+    })
+  }
+
+  function handleManualSetSubmit(watchingStatus: 'not_started' | 'watching', season?: number, episode?: number) {
+    if (!manualSetTarget) return
+    updateWatchingMutation.mutate(
+      {
+        id: manualSetTarget.id,
+        watchingStatus,
+        currentSeason: season,
+        currentEpisode: episode,
+      },
+      { onSuccess: () => setManualSetTarget(null) }
+    )
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Watchlist</Text>
@@ -160,6 +206,14 @@ export function WatchlistScreen() {
         >
           <Text style={[styles.tabText, activeTab === 'upcoming' && styles.tabTextActive]}>
             Upcoming
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'in-progress' && styles.tabActive]}
+          onPress={() => setActiveTab('in-progress')}
+        >
+          <Text style={[styles.tabText, activeTab === 'in-progress' && styles.tabTextActive]}>
+            In Progress{inProgressItems.length > 0 ? ` (${inProgressItems.length})` : ''}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -284,7 +338,81 @@ export function WatchlistScreen() {
             )}
           />
         </>
-      ) : (
+      ) : activeTab === 'in-progress' ? (
+        <>
+          {(listQuery.isLoading || listQuery.isFetching) && (
+            <ActivityIndicator color="#e8a020" style={styles.spinner} />
+          )}
+
+          {!listQuery.isLoading && !listQuery.isFetching && inProgressItems.length === 0 && (
+            <Text style={styles.emptyText}>
+              No shows in progress.{'\n'}Mark a show as "watching" to track your progress.
+            </Text>
+          )}
+
+          <FlatList
+            data={inProgressItems}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.list}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.card}
+                onPress={() => navigation.navigate('MediaDetail', { tmdbId: item.tmdbId, mediaType: item.mediaType })}
+                activeOpacity={0.7}
+              >
+                {item.posterPath ? (
+                  <Image
+                    source={{ uri: `${POSTER_BASE}${item.posterPath}` }}
+                    style={styles.poster}
+                  />
+                ) : (
+                  <View style={[styles.poster, styles.posterFallback]} />
+                )}
+                <View style={styles.info}>
+                  <Text style={styles.title} numberOfLines={2}>
+                    {item.title ?? 'Untitled'}
+                  </Text>
+                  <Text style={styles.meta}>
+                    {[item.year, item.mediaType === 'tv' ? 'TV' : 'Movie']
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </Text>
+                  {item.mediaType === 'tv' && (
+                    <EpisodeStepper
+                      currentSeason={item.currentSeason ?? 1}
+                      currentEpisode={item.currentEpisode ?? 1}
+                      totalSeasons={item.numberOfSeasons ?? null}
+                      totalEpisodes={item.numberOfEpisodes ?? null}
+                      onAdvance={() => handleNextEpisode(item)}
+                      onSetManually={() => setManualSetTarget({
+                        id: item.id,
+                        mediaType: item.mediaType,
+                        title: item.title ?? 'Untitled',
+                        totalSeasons: item.numberOfSeasons ?? null,
+                      })}
+                      isPending={episodeUpdateTarget === item.id && updateWatchingMutation.isPending}
+                    />
+                  )}
+                  <View style={[styles.actions, { marginTop: spacing.sm }]}>
+                    <TouchableOpacity
+                      style={styles.watchedButton}
+                      onPress={() => setRatingTarget({
+                        id: item.id,
+                        tmdbId: item.tmdbId,
+                        mediaType: item.mediaType,
+                        title: item.title ?? 'Untitled',
+                        genres: item.genres ?? [],
+                      })}
+                    >
+                      <Text style={styles.watchedButtonText}>Finished</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        </>
+      ) : activeTab === 'watched' ? (
         <>
           {(historyQuery.isLoading || historyQuery.isFetching) && (
             <ActivityIndicator color="#e8a020" style={styles.spinner} />
@@ -331,7 +459,7 @@ export function WatchlistScreen() {
             )}
           />
         </>
-      )}
+      ) : null}
 
       <DismissSheet
         visible={!!dismissTarget}
@@ -350,6 +478,18 @@ export function WatchlistScreen() {
         onSubmit={handleRatingSubmit}
         isPending={addHistoryMutation.isPending}
       />
+
+      {manualSetTarget && (
+        <WatchingStatusModal
+          visible={!!manualSetTarget}
+          mediaType={manualSetTarget.mediaType}
+          title={manualSetTarget.title}
+          totalSeasons={manualSetTarget.totalSeasons}
+          onClose={() => setManualSetTarget(null)}
+          onSubmit={handleManualSetSubmit}
+          isPending={updateWatchingMutation.isPending}
+        />
+      )}
     </View>
   )
 }
