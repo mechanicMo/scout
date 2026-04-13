@@ -1,7 +1,7 @@
 import { protectedProcedure, router } from '../trpc'
 import { z } from 'zod'
 import { db, moodSearches, users, tasteProfiles, usageLogs } from '@scout/db'
-import { and, eq, gte, desc, count, sql } from 'drizzle-orm'
+import { and, eq, gte, desc, count, sql, inArray } from 'drizzle-orm'
 import { GroqProvider } from '@scout/ai'
 import { discoverTMDB, TMDB_GENRE_MAP } from '@scout/shared'
 import { TRPCError } from '@trpc/server'
@@ -66,6 +66,48 @@ async function enrichRecs(
   return results
 }
 
+async function discoverAndRank(
+  query: string,
+  groq: GroqProvider,
+  tmdbToken: string,
+  userId: string,
+  profile: TasteProfile
+): Promise<Array<{ tmdbId: number; mediaType: string }>> {
+  const filters = await groq.extractSearchFilters(query)
+
+  const discoverPool: Array<{ tmdbId: number; mediaType: string; title: string; year: number | null; genres: string[]; overview: string }> = []
+  const mediaTypes: Array<'movie' | 'tv'> = filters.mediaType === 'any'
+    ? ['movie', 'tv']
+    : [filters.mediaType as 'movie' | 'tv']
+
+  for (const mt of mediaTypes) {
+    const genreIds = filters.genres
+      .map(g => TMDB_GENRE_MAP[g.toLowerCase()])
+      .filter((id): id is number => id !== undefined)
+
+    const results = await discoverTMDB({
+      mediaType: mt,
+      genres: genreIds.length > 0 ? genreIds : undefined,
+      yearMin: filters.yearMin,
+      yearMax: filters.yearMax,
+    }, tmdbToken)
+
+    for (const r of results) {
+      discoverPool.push({
+        tmdbId: r.tmdbId,
+        mediaType: r.mediaType,
+        title: r.title,
+        year: r.year,
+        genres: r.genres,
+        overview: r.overview,
+      })
+    }
+  }
+
+  const rawRecs = await groq.refineRecommendations(query, [], profile, discoverPool)
+  return rawRecs.map(r => ({ tmdbId: r.tmdbId, mediaType: r.mediaType }))
+}
+
 export const moodSearchRouter = router({
   search: protectedProcedure
     .input(z.object({ message: z.string().min(1).max(500) }))
@@ -76,40 +118,7 @@ export const moodSearchRouter = router({
       const groq = new GroqProvider(getGroqKey())
       const tmdbToken = getTMDBToken()
 
-      // Step 1: Extract filters from message
-      const filters = await groq.extractSearchFilters(input.message)
-
-      // Step 2: Query TMDB discover
-      const discoverPool: Array<{ tmdbId: number; mediaType: string; title: string; year: number | null; genres: string[]; overview: string }> = []
-      const mediaTypes: Array<'movie' | 'tv'> = filters.mediaType === 'any'
-        ? ['movie', 'tv']
-        : [filters.mediaType as 'movie' | 'tv']
-
-      for (const mt of mediaTypes) {
-        const genreIds = filters.genres
-          .map(g => TMDB_GENRE_MAP[g.toLowerCase()])
-          .filter((id): id is number => id !== undefined)
-
-        const results = await discoverTMDB({
-          mediaType: mt,
-          genres: genreIds.length > 0 ? genreIds : undefined,
-          yearMin: filters.yearMin,
-          yearMax: filters.yearMax,
-        }, tmdbToken)
-
-        for (const r of results) {
-          discoverPool.push({
-            tmdbId: r.tmdbId,
-            mediaType: r.mediaType,
-            title: r.title,
-            year: r.year,
-            genres: r.genres,
-            overview: r.overview,
-          })
-        }
-      }
-
-      // Step 3: Get user's taste profile
+      // Step 1: Get user's taste profile
       const [profileRow] = await db
         .select()
         .from(tasteProfiles)
@@ -140,17 +149,16 @@ export const moodSearchRouter = router({
             lastUpdated: new Date().toISOString(),
           }
 
-      // Step 4: Rank results via LLM
-      const rawRecs = await groq.refineRecommendations(
-        input.message, [], profile, discoverPool
-      )
+      // Step 2: Discover and rank results
+      const idsToStore = await discoverAndRank(input.message, groq, tmdbToken, userId, profile)
 
-      // Step 5: Generate title (verbatim if <=40 chars, else build from filters)
+      // Step 3: Generate title (verbatim if <=40 chars, else build from filters)
       let title: string
       if (input.message.length <= 40) {
         title = input.message
       } else {
         // For longer messages, build a short title from the extracted filters
+        const filters = await groq.extractSearchFilters(input.message)
         const titleParts: string[] = []
 
         // Add mood if available
@@ -180,7 +188,7 @@ export const moodSearchRouter = router({
         }
       }
 
-      // Step 6: Enforce 10-item cap on user's searches
+      // Step 4: Enforce 10-item cap on user's searches
       const userSearches = await db
         .select()
         .from(moodSearches)
@@ -188,22 +196,18 @@ export const moodSearchRouter = router({
         .orderBy(desc(moodSearches.createdAt))
 
       if (userSearches.length >= 10) {
-        const toDelete = userSearches.slice(9)
-        for (const search of toDelete) {
-          await db.delete(moodSearches).where(eq(moodSearches.id, search.id))
-        }
+        const toDeleteIds = userSearches.slice(9).map(s => s.id)
+        await db.delete(moodSearches).where(inArray(moodSearches.id, toDeleteIds))
       }
 
-      // Step 7: Store search + results
+      // Step 5: Store search + results
       const [inserted] = await db
         .insert(moodSearches)
         .values({
           userId,
           query: input.message,
           title,
-          resultTmdbIds: JSON.stringify(
-            rawRecs.map(r => ({ tmdbId: r.tmdbId, mediaType: r.mediaType }))
-          ),
+          resultTmdbIds: JSON.stringify(idsToStore),
         })
         .returning()
 
@@ -212,11 +216,11 @@ export const moodSearchRouter = router({
         message: 'Failed to save mood search',
       })
 
-      // Step 8: Log usage
+      // Step 6: Log usage
       await logUsage(userId)
 
-      // Step 9: Enrich and return
-      const enriched = await enrichRecs(rawRecs, tmdbToken)
+      // Step 7: Enrich and return
+      const enriched = await enrichRecs(idsToStore, tmdbToken)
       return {
         searchId: inserted.id,
         title: inserted.title,
@@ -246,44 +250,14 @@ export const moodSearchRouter = router({
       const groq = new GroqProvider(getGroqKey())
       const tmdbToken = getTMDBToken()
 
-      // Re-run the same search with fresh TMDB data
-      const filters = await groq.extractSearchFilters(search.query)
-      const discoverPool: Array<{ tmdbId: number; mediaType: string; title: string; year: number | null; genres: string[]; overview: string }> = []
-      const mediaTypes: Array<'movie' | 'tv'> = filters.mediaType === 'any'
-        ? ['movie', 'tv']
-        : [filters.mediaType as 'movie' | 'tv']
-
-      for (const mt of mediaTypes) {
-        const genreIds = filters.genres
-          .map(g => TMDB_GENRE_MAP[g.toLowerCase()])
-          .filter((id): id is number => id !== undefined)
-
-        const results = await discoverTMDB({
-          mediaType: mt,
-          genres: genreIds.length > 0 ? genreIds : undefined,
-          yearMin: filters.yearMin,
-          yearMax: filters.yearMax,
-        }, tmdbToken)
-
-        for (const r of results) {
-          discoverPool.push({
-            tmdbId: r.tmdbId,
-            mediaType: r.mediaType,
-            title: r.title,
-            year: r.year,
-            genres: r.genres,
-            overview: r.overview,
-          })
-        }
-      }
-
+      // Get user's taste profile
       const [profileRow] = await db
         .select()
         .from(tasteProfiles)
         .where(eq(tasteProfiles.userId, userId))
         .limit(1)
 
-      const profile = profileRow
+      const profile: TasteProfile = profileRow
         ? {
             id: profileRow.id,
             userId: profileRow.userId,
@@ -296,27 +270,32 @@ export const moodSearchRouter = router({
             lastUpdated: profileRow.lastUpdated.toISOString(),
           }
         : {
-            id: '', userId, likedGenres: [], dislikedGenres: [],
-            likedThemes: [], favoriteActors: [], services: [], notes: '',
+            id: '',
+            userId,
+            likedGenres: [],
+            dislikedGenres: [],
+            likedThemes: [],
+            favoriteActors: [],
+            services: [],
+            notes: '',
             lastUpdated: new Date().toISOString(),
           }
 
-      const rawRecs = await groq.refineRecommendations(search.query, [], profile, discoverPool)
+      // Re-run the same search with fresh TMDB data
+      const idsToStore = await discoverAndRank(search.query, groq, tmdbToken, userId, profile)
 
       // Update the stored results and timestamp
       await db
         .update(moodSearches)
         .set({
-          resultTmdbIds: JSON.stringify(
-            rawRecs.map(r => ({ tmdbId: r.tmdbId, mediaType: r.mediaType }))
-          ),
+          resultTmdbIds: JSON.stringify(idsToStore),
           updatedAt: new Date(),
         })
         .where(eq(moodSearches.id, input.searchId))
 
       await logUsage(userId)
 
-      const enriched = await enrichRecs(rawRecs, tmdbToken)
+      const enriched = await enrichRecs(idsToStore, tmdbToken)
       return enriched
     }),
 
@@ -332,7 +311,7 @@ export const moodSearchRouter = router({
         })
         .from(moodSearches)
         .where(eq(moodSearches.userId, userId))
-        .orderBy(desc(moodSearches.createdAt))
+        .orderBy(desc(moodSearches.createdAt), desc(moodSearches.id))
         .limit(10)
 
       return searches
@@ -355,7 +334,7 @@ export const moodSearchRouter = router({
         })
       }
 
-      const parsed = JSON.parse(search.resultTmdbIds as string) as Array<{ tmdbId: number; mediaType: string }>
+      const parsed = search.resultTmdbIds as unknown as Array<{ tmdbId: number; mediaType: string }>
       const tmdbToken = getTMDBToken()
       return enrichRecs(parsed, tmdbToken)
     }),
