@@ -149,14 +149,14 @@ export function MoodSearchScreen({ navigation }: MoodSearchScreenProps) {
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backText}>← Back</Text>
+          </TouchableOpacity>
+
           <View style={styles.inputRow}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            >
-              <Text style={styles.backText}>←</Text>
-            </TouchableOpacity>
             <TextInput
               style={styles.input}
               placeholder="Tell Scout what you're in the mood for..."
@@ -231,14 +231,14 @@ export function MoodSearchScreen({ navigation }: MoodSearchScreenProps) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => setSelectedSearchId(null)}
+      >
+        <Text style={styles.backText}>← Back</Text>
+      </TouchableOpacity>
+
       <View style={styles.resultsHeader}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => setSelectedSearchId(null)}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        >
-          <Text style={styles.backText}>←</Text>
-        </TouchableOpacity>
         <Text style={styles.resultsTitle}>{currentSearch?.title || ''}</Text>
         <TouchableOpacity
           style={styles.refreshButton}
@@ -323,9 +323,9 @@ function formatTime(dateString: string): string {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  backText: { fontSize: 24, color: colors.text },
-  inputRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, gap: spacing.sm },
+  backButton: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  backText: { ...typography.subtitle, color: colors.gold },
+  inputRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, gap: spacing.sm, marginBottom: spacing.md },
   errorBanner: { marginHorizontal: spacing.md, marginBottom: spacing.md, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, backgroundColor: '#3a1a1a', borderRadius: radius.md, borderWidth: 1, borderColor: '#5a2a2a' },
   errorText: { color: '#ff8888', fontSize: 13 },
   input: {
