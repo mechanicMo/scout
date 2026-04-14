@@ -14,3 +14,4 @@ apps/mobile/android/
 # local session state (not committed)
 SESSION.md
 .worktrees/
+package-lock.json
