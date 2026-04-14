@@ -355,20 +355,22 @@ export function PicksScreen() {
       />
       </View>
       <View style={styles.moodSearchFooter}>
-        <TouchableOpacity
-          style={styles.moodSearchButtonWrapper}
-          onPress={() => navigation.navigate('MoodSearch')}
-          activeOpacity={0.8}
-        >
-          <LinearGradient
-            colors={['#7c3aed', '#c026d3']}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            style={styles.moodSearchButton}
+        <View style={styles.moodSearchGlow}>
+          <TouchableOpacity
+            style={styles.moodSearchButtonWrapper}
+            onPress={() => navigation.navigate('MoodSearch')}
+            activeOpacity={0.8}
           >
-            <Text style={styles.moodSearchButtonText}>What are you in the mood for?</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+            <LinearGradient
+              colors={['#7c3aed', '#c026d3']}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.moodSearchButton}
+            >
+              <Text style={styles.moodSearchButtonText}>✦ What are you in the mood for?</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
         {usageQuery.data && (
           <Text style={styles.moodSearchCounter}>
             {(usageQuery.data?.moodSearch?.limit ?? 3) - (usageQuery.data?.moodSearch?.used ?? 0)} searches left today
@@ -439,6 +441,16 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     backgroundColor: colors.bg,
   },
+  moodSearchGlow: {
+    borderRadius: radius.pill + 4,
+    borderWidth: 1,
+    borderColor: 'rgba(192, 38, 211, 0.30)',
+    shadowColor: '#a855f7',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.55,
+    shadowRadius: 18,
+    elevation: 10,
+  },
   moodSearchButtonWrapper: {
     borderRadius: radius.pill,
     overflow: 'hidden',
@@ -454,6 +466,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
     fontWeight: '600',
+    letterSpacing: 0.2,
   },
   moodSearchCounter: {
     ...typography.micro,
