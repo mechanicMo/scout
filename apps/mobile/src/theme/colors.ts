@@ -6,7 +6,7 @@ const colors = {
   // Backgrounds — layered warm darks
   bg:            '#100a04',
   surface:       '#180d06',
-  surfaceRaised: '#1f1208',
+  surfaceRaised: '#261509',   // lifted for card separation
   surfaceHigh:   '#2a1a0c',
 
   // Gold — primary accent
@@ -19,12 +19,12 @@ const colors = {
   // Text hierarchy
   text:          '#fff1e6',   // primary text — warm white
   textSoft:      '#c8a87a',   // body text
-  textMuted:     '#7a5535',   // secondary labels
-  textDim:       '#5a3520',   // tertiary / placeholders
+  textMuted:     '#a07848',   // secondary labels (lifted for legibility)
+  textDim:       '#7a5535',   // tertiary / placeholders
 
   // Borders
-  border:        '#2e1a0a',
-  borderSubtle:  '#1f1208',
+  border:        '#3d2a14',   // lifted for defined card edges
+  borderSubtle:  '#261509',
 
   // Status
   error:         '#e05020',

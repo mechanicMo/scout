@@ -4,6 +4,7 @@ import {
   ActivityIndicator, StyleSheet, RefreshControl, KeyboardAvoidingView, Platform,
   Animated, PanResponder,
 } from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
@@ -355,10 +356,18 @@ export function PicksScreen() {
       </View>
       <View style={styles.moodSearchFooter}>
         <TouchableOpacity
-          style={styles.moodSearchButton}
+          style={styles.moodSearchButtonWrapper}
           onPress={() => navigation.navigate('MoodSearch')}
+          activeOpacity={0.8}
         >
-          <Text style={styles.moodSearchButtonText}>What are you in the mood for?</Text>
+          <LinearGradient
+            colors={['#7c3aed', '#c026d3']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.moodSearchButton}
+          >
+            <Text style={styles.moodSearchButtonText}>What are you in the mood for?</Text>
+          </LinearGradient>
         </TouchableOpacity>
         {usageQuery.data && (
           <Text style={styles.moodSearchCounter}>
@@ -430,10 +439,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     backgroundColor: colors.bg,
   },
+  moodSearchButtonWrapper: {
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+  },
   moodSearchButton: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radius.pill,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
@@ -441,8 +451,9 @@ const styles = StyleSheet.create({
   },
   moodSearchButtonText: {
     ...typography.body,
-    color: colors.textMuted,
+    color: '#fff',
     fontSize: 13,
+    fontWeight: '600',
   },
   moodSearchCounter: {
     ...typography.micro,
