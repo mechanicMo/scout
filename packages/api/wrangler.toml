@@ -1,0 +1,11 @@
+name = "scout-api"
+main = "src/worker.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Secrets are NOT listed here — add them via:
+#   wrangler secret put SUPABASE_URL
+#   wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+#   wrangler secret put SUPABASE_DB_URL
+#   wrangler secret put TMDB_READ_ACCESS_TOKEN
+#   wrangler secret put GROQ_API_KEY
