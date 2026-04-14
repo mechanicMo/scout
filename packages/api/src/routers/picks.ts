@@ -77,24 +77,34 @@ export const picksRouter = router({
 
       const today = new Date().toISOString().split('T')[0]
 
-      const dismissed = await db
-        .select({ tmdbId: watchlist.tmdbId, mediaType: watchlist.mediaType })
-        .from(watchlist)
-        .where(
-          and(
-            eq(watchlist.userId, userId),
-            or(
-              eq(watchlist.status, 'dismissed_never'),
-              and(
-                eq(watchlist.status, 'dismissed_not_now'),
-                gt(watchlist.resurfaceAfter, today)
+      const [dismissed, watched] = await Promise.all([
+        db
+          .select({ tmdbId: watchlist.tmdbId, mediaType: watchlist.mediaType })
+          .from(watchlist)
+          .where(
+            and(
+              eq(watchlist.userId, userId),
+              or(
+                eq(watchlist.status, 'dismissed_never'),
+                and(
+                  eq(watchlist.status, 'dismissed_not_now'),
+                  gt(watchlist.resurfaceAfter, today)
+                )
               )
             )
-          )
-        )
+          ),
+        db
+          .select({ tmdbId: watchHistory.tmdbId, mediaType: watchHistory.mediaType })
+          .from(watchHistory)
+          .where(eq(watchHistory.userId, userId)),
+      ])
 
       const dismissedSet = new Set(dismissed.map(d => `${d.tmdbId}-${d.mediaType}`))
-      return items.filter(i => !dismissedSet.has(`${i.tmdbId}-${i.mediaType}`))
+      const watchedSet = new Set(watched.map(w => `${w.tmdbId}-${w.mediaType}`))
+      return items.filter(i => {
+        const key = `${i.tmdbId}-${i.mediaType}`
+        return !dismissedSet.has(key) && !watchedSet.has(key)
+      })
     }),
 
   aiRecs: protectedProcedure
@@ -116,8 +126,14 @@ export const picksRouter = router({
         .limit(20)
 
       if (freshRecs.length >= 5) {
+        const watchedRows = await db
+          .select({ tmdbId: watchHistory.tmdbId, mediaType: watchHistory.mediaType })
+          .from(watchHistory)
+          .where(eq(watchHistory.userId, userId))
+        const watchedSet = new Set(watchedRows.map(w => `${w.tmdbId}-${w.mediaType}`))
+        const unWatched = freshRecs.filter(r => !watchedSet.has(`${r.tmdbId}-${r.mediaType}`))
         return enrichRecs(
-          freshRecs.map(r => ({ tmdbId: r.tmdbId, mediaType: r.mediaType })),
+          unWatched.map(r => ({ tmdbId: r.tmdbId, mediaType: r.mediaType })),
           getTMDBToken()
         )
       }
@@ -181,7 +197,13 @@ export const picksRouter = router({
       }
 
       await logUsage(userId, 'ai_recs')
-      return enrichRecs(rawRecs, getTMDBToken())
+      const watchedRows = await db
+        .select({ tmdbId: watchHistory.tmdbId, mediaType: watchHistory.mediaType })
+        .from(watchHistory)
+        .where(eq(watchHistory.userId, userId))
+      const watchedSet = new Set(watchedRows.map(w => `${w.tmdbId}-${w.mediaType}`))
+      const unWatchedRecs = rawRecs.filter(r => !watchedSet.has(`${r.tmdbId}-${r.mediaType}`))
+      return enrichRecs(unWatchedRecs, getTMDBToken())
     }),
 
 

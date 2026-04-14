@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import {
   View, Text, FlatList, Image, TouchableOpacity,
-  ActivityIndicator, StyleSheet, ScrollView,
+  ActivityIndicator, StyleSheet, ScrollView, Modal,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
@@ -44,6 +44,7 @@ export function WatchlistScreen() {
   const [dismissTarget, setDismissTarget] = useState<ActionTarget | null>(null)
   const [ratingTarget, setRatingTarget] = useState<ActionTarget | null>(null)
   const [sortBy, setSortBy] = useState<SortOption>('added-newest')
+  const [showSortPicker, setShowSortPicker] = useState(false)
   const [filterType, setFilterType] = useState<TypeFilter>('all')
   const [filterGenres, setFilterGenres] = useState<string[]>([])
   const [showGenreFilter, setShowGenreFilter] = useState(false)
@@ -100,11 +101,6 @@ export function WatchlistScreen() {
       (item: { watchingStatus: string }) => item.watchingStatus === 'watching'
     )
   }, [listQuery.data])
-
-  function cycleSortOption() {
-    const idx = SORT_OPTIONS.indexOf(sortBy)
-    setSortBy(SORT_OPTIONS[(idx + 1) % SORT_OPTIONS.length])
-  }
 
   function toggleGenre(genre: string) {
     setFilterGenres(prev => prev.includes(genre) ? prev.filter(g => g !== genre) : [...prev, genre])
@@ -229,7 +225,7 @@ export function WatchlistScreen() {
       {activeTab === 'upcoming' ? (
         <>
           <View style={styles.controlsRow}>
-            <TouchableOpacity style={styles.sortButton} onPress={cycleSortOption}>
+            <TouchableOpacity style={styles.sortButton} onPress={() => setShowSortPicker(true)}>
               <Text style={styles.sortButtonText}>↑↓ {SORT_LABELS[sortBy]}</Text>
             </TouchableOpacity>
             <View style={styles.typeChips}>
@@ -461,6 +457,31 @@ export function WatchlistScreen() {
         </>
       ) : null}
 
+      <Modal
+        visible={showSortPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSortPicker(false)}
+      >
+        <TouchableOpacity style={styles.sortOverlay} activeOpacity={1} onPress={() => setShowSortPicker(false)}>
+          <View style={styles.sortMenu}>
+            <Text style={styles.sortMenuTitle}>Sort by</Text>
+            {SORT_OPTIONS.map(option => (
+              <TouchableOpacity
+                key={option}
+                style={styles.sortMenuItem}
+                onPress={() => { setSortBy(option); setShowSortPicker(false) }}
+              >
+                <Text style={[styles.sortMenuItemText, sortBy === option && styles.sortMenuItemTextActive]}>
+                  {SORT_LABELS[option]}
+                </Text>
+                {sortBy === option && <Text style={styles.sortMenuCheck}>✓</Text>}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       <DismissSheet
         visible={!!dismissTarget}
         title={dismissTarget?.title ?? ''}
@@ -507,9 +528,9 @@ const styles = StyleSheet.create({
   typeChipActive: { backgroundColor: colors.goldSubtle, borderColor: colors.goldBorder },
   typeChipText: { ...typography.caption, color: colors.textMuted },
   typeChipTextActive: { color: colors.gold },
-  genreScroll: { maxHeight: 36, marginBottom: spacing.xs },
-  genreScrollContent: { paddingHorizontal: spacing.lg, gap: spacing.xs, alignItems: 'center' },
-  genreChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.xxs, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border },
+  genreScroll: { marginBottom: spacing.xs },
+  genreScrollContent: { paddingHorizontal: spacing.lg, gap: spacing.xs, alignItems: 'center', height: 34 },
+  genreChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border },
   genreChipActive: { backgroundColor: colors.goldSubtle, borderColor: colors.goldBorder },
   genreChipText: { ...typography.caption, color: colors.textMuted },
   genreChipTextActive: { color: colors.gold },
@@ -566,4 +587,11 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   notForMeText: { color: colors.textMuted, fontSize: 12 },
+  sortOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
+  sortMenu: { backgroundColor: colors.surfaceHigh, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', minWidth: 220, ...shadows.lg },
+  sortMenuTitle: { ...typography.label, color: colors.textMuted, paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm },
+  sortMenuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
+  sortMenuItemText: { ...typography.body, color: colors.textSoft, fontSize: 14 },
+  sortMenuItemTextActive: { color: colors.gold, fontWeight: '700' },
+  sortMenuCheck: { color: colors.gold, fontSize: 14, fontWeight: '700' },
 })

@@ -54,6 +54,7 @@ export class GroqProvider implements AIProvider {
       profile.dislikedGenres.length > 0 ? `Disliked genres: ${profile.dislikedGenres.join(', ')}` : null,
       profile.likedThemes.length > 0 ? `Liked themes: ${profile.likedThemes.join(', ')}` : null,
       profile.favoriteActors.length > 0 ? `Favorite actors: ${profile.favoriteActors.join(', ')}` : null,
+      profile.services.length > 0 ? `Streaming services: ${profile.services.join(', ')} — prioritize titles available on these` : null,
       profile.notes ? `Notes: ${profile.notes}` : null,
     ].filter(Boolean).join('\n')
 
