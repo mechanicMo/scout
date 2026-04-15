@@ -1,3 +1,4 @@
+// apps/mobile/src/navigation/TabNavigator.tsx
 import React from 'react'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { Text } from 'react-native'
@@ -7,7 +8,14 @@ import { WatchlistScreen } from '../screens/WatchlistScreen'
 import { ProfileScreen } from '../screens/ProfileScreen'
 import colors from '../theme/colors'
 
-const Tab = createBottomTabNavigator()
+export type TabParamList = {
+  Picks: undefined
+  Search: { initialMode?: 'mood' } | undefined
+  Watchlist: undefined
+  Profile: undefined
+}
+
+const Tab = createBottomTabNavigator<TabParamList>()
 
 const ICONS: Record<string, string> = {
   Picks: '✦', Search: '⌕', Watchlist: '☰', Profile: '◎',
