@@ -1,5 +1,5 @@
 // apps/mobile/src/screens/SearchScreen.tsx
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   View, Text, TextInput, FlatList, Image,
   TouchableOpacity, ActivityIndicator, StyleSheet,
@@ -27,11 +27,12 @@ export function SearchScreen({ route, navigation }: Props) {
 
   // Auto-activate mood mode when navigated here from Picks CTA
   useFocusEffect(useCallback(() => {
-    if (route.params?.initialMode === 'mood') {
-      setMode('mood')
+    const initial = route.params?.initialMode
+    if (initial) {
       navigation.setParams({ initialMode: undefined })
+      if (initial === 'mood') setMode('mood')
     }
-  }, [route.params?.initialMode]))
+  }, [route.params?.initialMode, navigation]))
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query.trim()), 400)
@@ -48,11 +49,11 @@ export function SearchScreen({ route, navigation }: Props) {
     onSuccess: () => utils.watchlist.list.invalidate(),
   })
 
-  const watchlistedSet = new Set(
+  const watchlistedSet = useMemo(() => new Set(
     watchlistQuery.data
       ?.filter((item: any) => item.status === 'saved')
       .map((item: any) => `${item.tmdbId}-${item.mediaType}`) ?? []
-  )
+  ), [watchlistQuery.data])
 
   function handleAdd(item: MediaItem) {
     addMutation.mutate({
@@ -131,7 +132,7 @@ export function SearchScreen({ route, navigation }: Props) {
             )}
 
             {searchQuery.isError && (
-              <Text style={styles.errorText}>{String(searchQuery.error)}</Text>
+              <Text style={styles.errorText}>{searchQuery.error.message}</Text>
             )}
 
             <FlatList
