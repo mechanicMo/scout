@@ -58,12 +58,10 @@ async function enrichRecs(
   recList: Array<{ tmdbId: number; mediaType: string }>,
   tmdbToken: string
 ): Promise<MediaItem[]> {
-  const results: MediaItem[] = []
-  for (const rec of recList) {
-    const media = await getOrFetchMedia(rec.tmdbId, rec.mediaType as 'movie' | 'tv', tmdbToken)
-    if (media) results.push(media)
-  }
-  return results
+  const results = await Promise.all(
+    recList.map(rec => getOrFetchMedia(rec.tmdbId, rec.mediaType as 'movie' | 'tv', tmdbToken))
+  )
+  return results.filter((m): m is MediaItem => m !== null)
 }
 
 async function discoverAndRank(
