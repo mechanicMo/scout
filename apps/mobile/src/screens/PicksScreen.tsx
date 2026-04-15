@@ -135,7 +135,6 @@ export function PicksScreen() {
   const REFRESH_COOLDOWN_MS = 60_000
 
   const utils = trpc.useUtils()
-  const usageQuery = trpc.picks.usage.useQuery()
   const aiRecsQuery = trpc.picks.aiRecs.useQuery(undefined, { retry: false })
   const trendingQuery = trpc.picks.trending.useQuery(undefined, {
     enabled: aiRecsQuery.isFetched && (aiRecsQuery.data?.length === 0 || aiRecsQuery.isError),
@@ -371,11 +370,6 @@ export function PicksScreen() {
             </LinearGradient>
           </TouchableOpacity>
         </View>
-        {usageQuery.data && (
-          <Text style={styles.moodSearchCounter}>
-            {(usageQuery.data?.moodSearch?.limit ?? 3) - (usageQuery.data?.moodSearch?.used ?? 0)} searches left today
-          </Text>
-        )}
       </View>
       <DismissSheet
         visible={!!dismissTarget} title={dismissTarget?.title ?? ''}
@@ -467,11 +461,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     letterSpacing: 0.2,
-  },
-  moodSearchCounter: {
-    ...typography.micro,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: spacing.xs,
   },
 })
