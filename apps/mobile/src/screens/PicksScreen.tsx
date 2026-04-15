@@ -7,7 +7,9 @@ import {
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'
+import type { NavigationProp } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
+import type { TabParamList } from '../navigation/TabNavigator'
 import { trpc } from '../lib/trpc'
 import { DismissSheet } from '../components/DismissSheet'
 import { RatingModal } from '../components/RatingModal'
@@ -357,7 +359,10 @@ export function PicksScreen() {
         <View style={styles.moodSearchGlow}>
           <TouchableOpacity
             style={styles.moodSearchButtonWrapper}
-            onPress={() => navigation.navigate('MoodSearch')}
+            onPress={() => {
+              const tabNav = navigation.getParent<NavigationProp<TabParamList>>()
+              tabNav?.navigate('Search', { initialMode: 'mood' })
+            }}
             activeOpacity={0.8}
           >
             <LinearGradient
