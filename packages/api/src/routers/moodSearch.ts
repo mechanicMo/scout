@@ -59,7 +59,10 @@ async function enrichRecs(
   tmdbToken: string
 ): Promise<MediaItem[]> {
   const results = await Promise.all(
-    recList.map(rec => getOrFetchMedia(rec.tmdbId, rec.mediaType as 'movie' | 'tv', tmdbToken))
+    recList.map(rec =>
+      getOrFetchMedia(rec.tmdbId, rec.mediaType as 'movie' | 'tv', tmdbToken)
+        .catch(() => null)
+    )
   )
   return results.filter((m): m is MediaItem => m !== null)
 }
