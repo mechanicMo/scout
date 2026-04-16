@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   View, Text, Image, ScrollView, TouchableOpacity,
   ActivityIndicator, StyleSheet, Platform,
@@ -200,7 +200,7 @@ export function MediaDetailScreen({ route, navigation }: Props) {
 
   const isTogglingWatchlist = addMutation.isPending || removeMutation.isPending
 
-  const statusActions: StatusAction[] = (() => {
+  const statusActions: StatusAction[] = useMemo(() => {
     if (!watchlistItem && !isInProgress && !isWatched) return []
     const acts: StatusAction[] = []
     if (mediaType === 'tv' && !isInProgress && !isWatched) {
@@ -229,11 +229,13 @@ export function MediaDetailScreen({ route, navigation }: Props) {
       danger: true,
       onPress: () => {
         setShowStatusSheet(false)
-        if (watchlistItem) removeMutation.mutate({ id: watchlistItem.id })
+        if (watchlistItem && !removeMutation.isPending) {
+          removeMutation.mutate({ id: watchlistItem.id })
+        }
       },
     })
     return acts
-  })()
+  }, [watchlistItem, isInProgress, isWatched, mediaType, watchlistEntry])
 
   const showOverflow = (watchlistItem || isInProgress || isWatched) && statusActions.length > 0
 
