@@ -7,6 +7,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'
+import type { CompositeNavigationProp } from '@react-navigation/native'
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { TabParamList } from '../navigation/TabNavigator'
@@ -18,7 +19,10 @@ import type { RootStackParamList } from '../navigation/MainNavigator'
 import type { MediaItem } from '@scout/shared'
 import { colors, typography, spacing, radius, shadows } from '../theme'
 
-type Nav = NativeStackNavigationProp<RootStackParamList>
+type Nav = CompositeNavigationProp<
+  BottomTabNavigationProp<TabParamList, 'Picks'>,
+  NativeStackNavigationProp<RootStackParamList>
+>
 const POSTER_BASE = 'https://image.tmdb.org/t/p/w185'
 
 function SwipeableCard({
@@ -360,8 +364,7 @@ export function PicksScreen() {
           <TouchableOpacity
             style={styles.moodSearchButtonWrapper}
             onPress={() => {
-              const tabNav = navigation.getParent<BottomTabNavigationProp<TabParamList>>()
-              tabNav?.navigate('Search', { initialMode: 'mood' })
+              navigation.navigate('Search', { initialMode: 'mood' })
             }}
             activeOpacity={0.8}
           >
