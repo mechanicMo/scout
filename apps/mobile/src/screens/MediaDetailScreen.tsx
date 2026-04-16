@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { trpc } from '../lib/trpc'
 import { WatchingStatusModal } from '../components/WatchingStatusModal'
 import { RatingModal } from '../components/RatingModal'
+import { StatusSheet, type StatusAction } from '../components/StatusSheet'
 import colors from '../theme/colors'
 import { typography } from '../theme/typography'
 import { spacing, radius, shadows } from '../theme/spacing'
@@ -38,6 +39,7 @@ export function MediaDetailScreen({ route, navigation }: Props) {
   const [showRatingModal, setShowRatingModal] = useState(false)
   const [watchingTargetId, setWatchingTargetId] = useState<string | null>(null)
   const [isStartingWatch, setIsStartingWatch] = useState(false)
+  const [showStatusSheet, setShowStatusSheet] = useState(false)
 
   const utils = trpc.useUtils()
   const mediaQuery = trpc.tmdb.getMedia.useQuery({ tmdbId, mediaType })
@@ -198,6 +200,43 @@ export function MediaDetailScreen({ route, navigation }: Props) {
 
   const isTogglingWatchlist = addMutation.isPending || removeMutation.isPending
 
+  const statusActions: StatusAction[] = (() => {
+    if (!watchlistItem && !isInProgress && !isWatched) return []
+    const acts: StatusAction[] = []
+    if (mediaType === 'tv' && !isInProgress && !isWatched) {
+      acts.push({
+        key: 'watching',
+        icon: '▷',
+        label: 'Now Watching',
+        meta: 'Start tracking from S1 · E1',
+        onPress: () => { setShowStatusSheet(false); handleStartWatching() },
+      })
+    }
+    if (!isWatched) {
+      acts.push({
+        key: 'seen',
+        icon: '✓',
+        label: 'Already Seen',
+        meta: 'Rate this title',
+        onPress: () => { setShowStatusSheet(false); setShowRatingModal(true) },
+      })
+    }
+    acts.push({
+      key: 'remove',
+      icon: '✕',
+      label: 'Remove',
+      meta: 'Take out of your watchlist',
+      danger: true,
+      onPress: () => {
+        setShowStatusSheet(false)
+        if (watchlistItem) removeMutation.mutate({ id: watchlistItem.id })
+      },
+    })
+    return acts
+  })()
+
+  const showOverflow = (watchlistItem || isInProgress || isWatched) && statusActions.length > 0
+
   if (mediaQuery.isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -304,66 +343,53 @@ export function MediaDetailScreen({ route, navigation }: Props) {
               <Text style={styles.network}>{media.network}</Text>
             ) : null}
 
-            <TouchableOpacity
-              style={[styles.watchlistButton, inWatchlist && styles.watchlistButtonSaved]}
-              onPress={handleWatchlistToggle}
-              disabled={isTogglingWatchlist || watchlistQuery.isLoading}
-            >
-              {isTogglingWatchlist ? (
-                <ActivityIndicator size="small" color={colors.bg} />
-              ) : (
-                <Text style={[styles.watchlistButtonText, inWatchlist && styles.watchlistButtonTextSaved]}>
-                  {inWatchlist ? '✓ In Watchlist' : '+ Add to Watchlist'}
-                </Text>
+            <View style={styles.statusRow}>
+              <TouchableOpacity
+                style={[
+                  styles.primaryButton,
+                  (inWatchlist || isInProgress || isWatched) && styles.primaryButtonSecondary,
+                  isWatched && styles.primaryButtonWatched,
+                ]}
+                onPress={() => {
+                  if (isWatched) { handleRemoveWatched(); return }
+                  if (isInProgress) { handleEditProgress(); return }
+                  handleWatchlistToggle()
+                }}
+                disabled={isTogglingWatchlist || watchlistQuery.isLoading || removeHistoryMutation.isPending}
+              >
+                {isTogglingWatchlist ? (
+                  <ActivityIndicator size="small" color={colors.bg} />
+                ) : isWatched ? (
+                  <>
+                    <Text style={styles.primaryButtonTextWatched}>
+                      {removeHistoryMutation.isPending ? 'Removing...' : '✓ Watched'}
+                    </Text>
+                    <Text style={styles.primaryButtonHint}>Tap to undo</Text>
+                  </>
+                ) : isInProgress ? (
+                  <>
+                    <Text style={styles.primaryButtonTextSaved}>
+                      ▷ S{watchlistEntry?.currentSeason ?? 1} · E{watchlistEntry?.currentEpisode ?? 1}
+                    </Text>
+                    <Text style={styles.primaryButtonHint}>Tap to edit episode</Text>
+                  </>
+                ) : inWatchlist ? (
+                  <Text style={styles.primaryButtonTextSaved}>✓ Saved</Text>
+                ) : (
+                  <Text style={styles.primaryButtonText}>+ Add to Watchlist</Text>
+                )}
+              </TouchableOpacity>
+
+              {showOverflow && (
+                <TouchableOpacity
+                  style={styles.overflowButton}
+                  onPress={() => setShowStatusSheet(true)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.overflowText}>···</Text>
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
-
-            {/* "I've seen this" - only show if not already in watch history */}
-            {!isWatched && (
-              <TouchableOpacity
-                style={styles.seenButton}
-                onPress={() => setShowRatingModal(true)}
-              >
-                <Text style={styles.seenButtonText}>I've seen this</Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Show watched confirmation - tappable to undo */}
-            {isWatched && (
-              <TouchableOpacity
-                style={styles.watchedBadge}
-                onPress={handleRemoveWatched}
-                disabled={removeHistoryMutation.isPending}
-              >
-                <Text style={styles.watchedBadgeText}>
-                  {removeHistoryMutation.isPending ? 'Removing...' : '✓ Watched'}
-                </Text>
-                <Text style={styles.watchedUndoText}>Tap to undo</Text>
-              </TouchableOpacity>
-            )}
-
-            {/* "I'm watching this" for TV - auto-adds to watchlist as S1E1 */}
-            {mediaType === 'tv' && !isInProgress && !isWatched && (
-              <TouchableOpacity
-                style={styles.watchingButton}
-                onPress={handleStartWatching}
-                disabled={addMutation.isPending || updateWatchingMutation.isPending || isStartingWatch}
-              >
-                <Text style={styles.watchingButtonText}>
-                  {(addMutation.isPending || updateWatchingMutation.isPending) ? 'Adding...' : "I'm watching this"}
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Show in-progress status - tappable to edit */}
-            {isInProgress && (
-              <TouchableOpacity style={styles.progressButton} onPress={handleEditProgress}>
-                <Text style={styles.progressButtonText}>
-                  S{watchlistEntry?.currentSeason ?? 1} · E{watchlistEntry?.currentEpisode ?? 1}
-                </Text>
-                <Text style={styles.progressEditHint}>Tap to edit</Text>
-              </TouchableOpacity>
-            )}
+            </View>
           </View>
         </View>
 
@@ -451,6 +477,13 @@ export function MediaDetailScreen({ route, navigation }: Props) {
         onSubmit={handleRatingSubmit}
         isPending={addHistoryMutation.isPending}
       />
+
+      <StatusSheet
+        visible={showStatusSheet}
+        title={media.title}
+        actions={statusActions}
+        onClose={() => setShowStatusSheet(false)}
+      />
     </SafeAreaView>
   )
 }
@@ -498,8 +531,14 @@ const styles = StyleSheet.create({
   },
   ratingText: { ...typography.micro, color: colors.textMuted },
 
-  watchlistButton: {
+  statusRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
     marginTop: spacing.md,
+    alignItems: 'stretch',
+  },
+  primaryButton: {
+    flex: 1,
     backgroundColor: colors.gold,
     borderRadius: radius.md,
     paddingVertical: spacing.sm,
@@ -508,14 +547,53 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...shadows.md,
   },
-  watchlistButtonSaved: {
+  primaryButtonSecondary: {
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderColor: colors.gold,
     ...Platform.select({ ios: { shadowOpacity: 0 }, android: { elevation: 0 }, default: {} }),
   },
-  watchlistButtonText: { ...typography.button, color: colors.bg, fontFamily: 'Outfit_600SemiBold' },
-  watchlistButtonTextSaved: { ...typography.button, color: colors.gold, fontFamily: 'Outfit_600SemiBold' },
+  primaryButtonWatched: {
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...Platform.select({ ios: { shadowOpacity: 0 }, android: { elevation: 0 }, default: {} }),
+  },
+  primaryButtonText: {
+    ...typography.button,
+    color: colors.bg,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  primaryButtonTextSaved: {
+    ...typography.button,
+    color: colors.gold,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  primaryButtonTextWatched: {
+    ...typography.button,
+    color: colors.gold,
+    fontSize: 13,
+  },
+  primaryButtonHint: {
+    ...typography.micro,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  overflowButton: {
+    width: 44,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  overflowText: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 2,
+  },
 
   section: { marginBottom: spacing.xxl, paddingHorizontal: spacing.lg },
   sectionLabel: { ...typography.label, color: colors.gold, marginBottom: spacing.md, letterSpacing: 0.8 },
@@ -533,48 +611,6 @@ const styles = StyleSheet.create({
   providerItem: { alignItems: 'center', width: 56 },
   providerLogo: { width: 40, height: 40, borderRadius: radius.md, marginBottom: spacing.sm, backgroundColor: colors.surfaceRaised, ...shadows.sm },
   providerName: { ...typography.micro, textAlign: 'center', color: colors.textMuted },
-
-  seenButton: {
-    marginTop: spacing.sm,
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  seenButtonText: { ...typography.button, color: colors.text, fontSize: 13 },
-  watchedBadge: {
-    marginTop: spacing.sm,
-    paddingVertical: spacing.xs,
-    alignItems: 'center',
-  },
-  watchedBadgeText: { ...typography.caption, color: colors.gold },
-  watchedUndoText: { ...typography.micro, color: colors.textMuted, marginTop: 2 },
-  watchingButton: {
-    marginTop: spacing.sm,
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.gold,
-  },
-  watchingButtonText: { ...typography.button, color: colors.gold, fontSize: 13 },
-  progressButton: {
-    marginTop: spacing.sm,
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.gold,
-  },
-  progressButtonText: { ...typography.button, color: colors.gold, fontSize: 14 },
-  progressEditHint: { ...typography.micro, color: colors.textMuted, marginTop: 2 },
 
   errorText: { ...typography.body, color: colors.error, textAlign: 'center', marginTop: spacing['3xl'] },
 })
