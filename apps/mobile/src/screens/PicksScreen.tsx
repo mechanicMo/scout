@@ -123,7 +123,7 @@ type FeedTarget = {
   genres: string[]; posterPath: string | null; year: number | null; overview: string
 }
 
-type SurveyItem = { _type: 'survey'; question: string; options: string[] }
+type SurveyItem = { _type: 'survey'; question: string; options: string[]; multiSelect?: boolean }
 type FeedItem = MediaItem | SurveyItem
 
 function isSurveyItem(item: FeedItem): item is SurveyItem {
@@ -180,7 +180,7 @@ export function PicksScreen() {
 
   // Insert survey card at position 2 (after 2 media items) if available
   const surveyCard = surveyQuery.data && !surveyDismissed
-    ? { _type: 'survey' as const, question: surveyQuery.data.question, options: surveyQuery.data.options }
+    ? { _type: 'survey' as const, question: surveyQuery.data.question, options: surveyQuery.data.options, multiSelect: surveyQuery.data.multiSelect }
     : null
 
   const feedItems: FeedItem[] = surveyCard
@@ -302,6 +302,7 @@ export function PicksScreen() {
               <SurveyCard
                 question={item.question}
                 options={item.options}
+                multiSelect={item.multiSelect}
                 onAnswer={answer => {
                   setSurveyDismissed(true)
                   submitSurveyMutation.mutate({ question: item.question, answer })
