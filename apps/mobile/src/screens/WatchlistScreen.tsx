@@ -170,12 +170,20 @@ export function WatchlistScreen() {
     }
 
     setEpisodeUpdateTarget(item.id)
-    updateWatchingMutation.mutate({
-      id: item.id,
-      watchingStatus: 'watching',
-      currentSeason: nextSeason,
-      currentEpisode: nextEpisode,
-    })
+
+    // Optimistic update — immediately reflect new episode so button can't double-fire
+    const snapshot = utils.watchlist.list.getData({})
+    utils.watchlist.list.setData({}, (old: any) =>
+      old?.map((w: any) => w.id === item.id
+        ? { ...w, currentSeason: nextSeason, currentEpisode: nextEpisode }
+        : w
+      )
+    )
+
+    updateWatchingMutation.mutate(
+      { id: item.id, watchingStatus: 'watching', currentSeason: nextSeason, currentEpisode: nextEpisode },
+      { onError: () => utils.watchlist.list.setData({}, snapshot) }
+    )
   }
 
   function handleManualSetSubmit(watchingStatus: 'not_started' | 'watching', season?: number, episode?: number) {

@@ -37,6 +37,7 @@ export function MediaDetailScreen({ route, navigation }: Props) {
   const [showWatchingModal, setShowWatchingModal] = useState(false)
   const [showRatingModal, setShowRatingModal] = useState(false)
   const [watchingTargetId, setWatchingTargetId] = useState<string | null>(null)
+  const [isStartingWatch, setIsStartingWatch] = useState(false)
 
   const utils = trpc.useUtils()
   const mediaQuery = trpc.tmdb.getMedia.useQuery({ tmdbId, mediaType })
@@ -61,10 +62,13 @@ export function MediaDetailScreen({ route, navigation }: Props) {
         // Auto-set to S1E1 in-progress
         updateWatchingMutation.mutate(
           { id: data.id, watchingStatus: 'watching', currentSeason: 1, currentEpisode: 1 },
-          { onSuccess: () => utils.watchlist.list.invalidate() }
+          { onSuccess: () => { utils.watchlist.list.invalidate(); setIsStartingWatch(false) } }
         )
+      } else {
+        setIsStartingWatch(false)
       }
     },
+    onError: () => setIsStartingWatch(false),
   })
   const removeMutation = trpc.watchlist.remove.useMutation({
     onSuccess: () => utils.watchlist.list.invalidate(),
@@ -120,13 +124,24 @@ export function MediaDetailScreen({ route, navigation }: Props) {
     if (!mediaQuery.data) return
     const m = mediaQuery.data
     if (watchlistEntry) {
-      // Already in watchlist - just mark as watching S1E1
+      // Optimistic update — immediately mark as watching so UI responds instantly
+      const snapshot = utils.watchlist.list.getData({})
+      utils.watchlist.list.setData({}, (old: any) =>
+        old?.map((w: any) => w.id === watchlistEntry.id
+          ? { ...w, watchingStatus: 'watching', currentSeason: 1, currentEpisode: 1 }
+          : w
+        )
+      )
       updateWatchingMutation.mutate(
         { id: watchlistEntry.id, watchingStatus: 'watching', currentSeason: 1, currentEpisode: 1 },
-        { onSuccess: () => utils.watchlist.list.invalidate() }
+        {
+          onSuccess: () => utils.watchlist.list.invalidate(),
+          onError: () => utils.watchlist.list.setData({}, snapshot),
+        }
       )
     } else {
-      // Add to watchlist first, then mark as watching in onSuccess
+      // Add to watchlist first — isStartingWatch keeps the button locked until the full chain finishes
+      setIsStartingWatch(true)
       addMutation.mutate({
         tmdbId: m.tmdbId,
         mediaType: m.mediaType,
@@ -332,7 +347,7 @@ export function MediaDetailScreen({ route, navigation }: Props) {
               <TouchableOpacity
                 style={styles.watchingButton}
                 onPress={handleStartWatching}
-                disabled={addMutation.isPending || updateWatchingMutation.isPending}
+                disabled={addMutation.isPending || updateWatchingMutation.isPending || isStartingWatch}
               >
                 <Text style={styles.watchingButtonText}>
                   {(addMutation.isPending || updateWatchingMutation.isPending) ? 'Adding...' : "I'm watching this"}
