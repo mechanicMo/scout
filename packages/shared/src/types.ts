@@ -80,6 +80,7 @@ export interface MoodSearch {
 export interface SurveyQuestion {
   question: string
   options: string[]
+  multiSelect?: boolean
 }
 
 export interface SurveyAnswer {
