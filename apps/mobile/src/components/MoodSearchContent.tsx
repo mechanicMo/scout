@@ -218,7 +218,7 @@ export function MoodSearchContent() {
           end={{ x: 0.3, y: 1 }}
           style={styles.gradientHeader}
         >
-          <View style={styles.inputRow}>
+          <View>
             <TextInput
               style={styles.input}
               placeholder="Tell Scout what you're in the mood for..."
@@ -229,22 +229,9 @@ export function MoodSearchContent() {
               onSubmitEditing={handleSearch}
               returnKeyType="search"
             />
-            <TouchableOpacity
-              style={[styles.sendButtonWrapper, (!searchText.trim() || searchMutation.isPending) && styles.sendButtonDisabled]}
-              onPress={handleSearch}
-              disabled={!searchText.trim() || searchMutation.isPending}
-            >
-              <LinearGradient
-                colors={['#7c3aed', '#c026d3']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.sendButton}
-              >
-                {searchMutation.isPending
-                  ? <ActivityIndicator size="small" color="white" />
-                  : <Text style={styles.sendText}>→</Text>}
-              </LinearGradient>
-            </TouchableOpacity>
+            {searchMutation.isPending && (
+              <ActivityIndicator size="small" color={colors.gold} style={styles.inlineSpinner} />
+            )}
           </View>
         </LinearGradient>
 
@@ -408,33 +395,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(192,38,211,0.2)',
   },
-  inputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   input: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    color: colors.text,
-    fontSize: 14,
+    backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: 'rgba(192,38,211,0.3)',
+    borderColor: 'rgba(192,38,211,0.4)',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    color: colors.text,
+    fontSize: 15,
   },
-  sendButtonWrapper: {
-    borderRadius: radius.pill,
-    overflow: 'hidden',
-    shadowColor: '#a855f7',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 8,
+  inlineSpinner: {
+    position: 'absolute',
+    right: spacing.md,
+    top: '50%',
+    marginTop: -10,
   },
-  sendButtonDisabled: { opacity: 0.4 },
-  sendButton: {
-    width: 40, height: 40, borderRadius: radius.pill,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  sendText: { color: 'white', fontSize: 16, fontWeight: '700' },
   errorBanner: {
     marginHorizontal: spacing.md, marginTop: spacing.sm,
     paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
