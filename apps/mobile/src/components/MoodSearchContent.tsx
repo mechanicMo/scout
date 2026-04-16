@@ -222,7 +222,7 @@ export function MoodSearchContent() {
             <TextInput
               style={styles.input}
               placeholder="Tell Scout what you're in the mood for..."
-              placeholderTextColor="rgba(255,255,255,0.3)"
+              placeholderTextColor="rgba(255,255,255,0.5)"
               value={searchText}
               onChangeText={(text) => { setSearchText(text); setSearchError(null) }}
               editable={!searchMutation.isPending}
@@ -401,6 +401,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(192,38,211,0.4)',
     borderRadius: radius.md,
     padding: spacing.md,
+    paddingRight: spacing.lg + 10,
     color: colors.text,
     fontSize: 15,
   },
@@ -408,7 +409,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: spacing.md,
     top: '50%',
-    marginTop: -10,
+    width: 24,
+    height: 24,
+    marginTop: -12,
+    pointerEvents: 'none',
   },
   errorBanner: {
     marginHorizontal: spacing.md, marginTop: spacing.sm,
