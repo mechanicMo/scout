@@ -15,8 +15,9 @@ function getGroqKey(): string {
 // Shown to new users before AI-generated questions kick in
 const SEED_QUESTIONS: SurveyQuestion[] = [
   {
-    question: "What genre do you reach for when you're not sure what to watch?",
+    question: "What genres do you reach for when you're not sure what to watch?",
     options: ['Action / Thriller', 'Drama', 'Comedy', 'Horror / Sci-Fi'],
+    multiSelect: true,
   },
   {
     question: 'Do you prefer movies or TV shows?',
@@ -29,6 +30,11 @@ const SEED_QUESTIONS: SurveyQuestion[] = [
   {
     question: 'What kind of pacing do you prefer?',
     options: ['Fast and intense', 'Slow burn', 'Mix of both', 'Depends on the story'],
+  },
+  {
+    question: 'How much time are you willing to commit to a single TV series?',
+    options: ['Limited series only (1 season)', '2–3 seasons', '4+ seasons', 'However long it takes'],
+    multiSelect: true,
   },
 ]
 
