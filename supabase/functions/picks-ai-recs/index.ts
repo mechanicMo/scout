@@ -40,10 +40,10 @@ export async function handler(req: Request): Promise<Response> {
       }
     }
 
-    // Fetch taste profile
+    // Fetch taste profile — new users may not have one yet
     const profile = await getTasteProfile(supabase, userId)
     if (!profile) {
-      return errorResponse('Taste profile not found', 400)
+      return jsonResponse({ recommendations: [] })
     }
 
     // Fetch recent watch history (last 20)
