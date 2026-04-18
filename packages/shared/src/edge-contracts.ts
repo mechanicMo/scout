@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { MediaType, CastMember, WatchProviders } from './types'
 
 /**
  * Edge Function Contract Schemas
@@ -11,24 +12,21 @@ import { z } from 'zod'
 // Base Types
 // ============================================================================
 
-export const MediaTypeSchema = z.enum(['movie', 'tv'])
-export type MediaType = z.infer<typeof MediaTypeSchema>
+const MediaTypeSchema = z.enum(['movie', 'tv']) as z.ZodType<MediaType>
 
-export const CastMemberSchema = z.object({
+const CastMemberSchema: z.ZodType<CastMember> = z.object({
   name: z.string(),
   character: z.string(),
   profilePath: z.string().nullable(),
 })
-export type CastMember = z.infer<typeof CastMemberSchema>
 
-export const WatchProviderSchema = z.object({
+const WatchProviderSchema = z.object({
   providerId: z.number(),
   providerName: z.string(),
   logoPath: z.string(),
 })
-export type WatchProvider = z.infer<typeof WatchProviderSchema>
 
-export const WatchProvidersSchema = z.record(
+const WatchProvidersSchema: z.ZodType<WatchProviders> = z.record(
   z.string(),
   z.object({
     flatrate: z.array(WatchProviderSchema).optional(),
@@ -36,7 +34,6 @@ export const WatchProvidersSchema = z.record(
     buy: z.array(WatchProviderSchema).optional(),
   })
 )
-export type WatchProviders = z.infer<typeof WatchProvidersSchema>
 
 // ============================================================================
 // Media Item Schemas
@@ -46,7 +43,7 @@ export type WatchProviders = z.infer<typeof WatchProvidersSchema>
  * Base media item schema with essential fields
  * Used by Picks/Trending endpoints
  */
-export const MediaItemSchema = z.object({
+export const EdgeMediaItemSchema = z.object({
   tmdbId: z.number(),
   mediaType: MediaTypeSchema,
   title: z.string(),
@@ -56,13 +53,13 @@ export const MediaItemSchema = z.object({
   overview: z.string(),
   runtime: z.number().nullable(),
 })
-export type MediaItem = z.infer<typeof MediaItemSchema>
+export type EdgeMediaItem = z.infer<typeof EdgeMediaItemSchema>
 
 /**
  * Extended media item schema with all details
  * Used by media detail endpoints
  */
-export const MediaDetailSchema = MediaItemSchema.extend({
+export const EdgeMediaDetailSchema = EdgeMediaItemSchema.extend({
   backdropPath: z.string().nullable(),
   tagline: z.string().nullable(),
   voteAverage: z.number().nullable(),
@@ -76,7 +73,7 @@ export const MediaDetailSchema = MediaItemSchema.extend({
   network: z.string().nullable(),
   watchProviders: WatchProvidersSchema,
 })
-export type MediaDetail = z.infer<typeof MediaDetailSchema>
+export type EdgeMediaDetail = z.infer<typeof EdgeMediaDetailSchema>
 
 // ============================================================================
 // Picks/Trending Endpoints
@@ -86,14 +83,14 @@ export type MediaDetail = z.infer<typeof MediaDetailSchema>
  * Output for /picks/trending endpoint
  * Returns an array of trending media items
  */
-export const PicksTrendingOutputSchema = z.array(MediaItemSchema)
+export const PicksTrendingOutputSchema = z.array(EdgeMediaItemSchema)
 export type PicksTrendingOutput = z.infer<typeof PicksTrendingOutputSchema>
 
 /**
  * Output for /picks/ai-recs endpoint
  * Returns an array of AI-generated recommendations
  */
-export const PicksAiRecsOutputSchema = z.array(MediaItemSchema)
+export const PicksAiRecsOutputSchema = z.array(EdgeMediaItemSchema)
 export type PicksAiRecsOutput = z.infer<typeof PicksAiRecsOutputSchema>
 
 // ============================================================================
@@ -113,7 +110,7 @@ export type TmdbGetMediaInput = z.infer<typeof TmdbGetMediaInputSchema>
 /**
  * Output for /tmdb/media/:tmdbId/:mediaType endpoint
  */
-export const TmdbMediaDetailOutputSchema = MediaDetailSchema
+export const TmdbMediaDetailOutputSchema = EdgeMediaDetailSchema
 export type TmdbMediaDetailOutput = z.infer<typeof TmdbMediaDetailOutputSchema>
 
 // ============================================================================
@@ -145,20 +142,20 @@ export type TmdbGenerateTagsOutput = z.infer<typeof TmdbGenerateTagsOutputSchema
  * Schema for a survey question
  * Used in taste profile survey flow
  */
-export const SurveyQuestionSchema = z.object({
+export const EdgeSurveyQuestionSchema = z.object({
   id: z.string(),
   question: z.string(),
   options: z.array(z.string()),
   multiSelect: z.boolean().optional().default(false),
   source: z.string().optional(),
 })
-export type SurveyQuestion = z.infer<typeof SurveyQuestionSchema>
+export type EdgeSurveyQuestion = z.infer<typeof EdgeSurveyQuestionSchema>
 
 /**
  * Output for /survey/next endpoint
  * Returns the next survey question or null if survey is complete
  */
-export const SurveyNextOutputSchema = SurveyQuestionSchema.nullable()
+export const SurveyNextOutputSchema = EdgeSurveyQuestionSchema.nullable()
 export type SurveyNextOutput = z.infer<typeof SurveyNextOutputSchema>
 
 // ============================================================================
@@ -181,7 +178,7 @@ export type MoodSearchInput = z.infer<typeof MoodSearchInputSchema>
 export const MoodSearchOutputSchema = z.object({
   searchId: z.string(),
   title: z.string(),
-  results: z.array(MediaItemSchema),
+  results: z.array(EdgeMediaItemSchema),
 })
 export type MoodSearchOutput = z.infer<typeof MoodSearchOutputSchema>
 
@@ -200,7 +197,7 @@ export type MoodSearchRefreshInput = z.infer<typeof MoodSearchRefreshInputSchema
  */
 export const MoodSearchRefreshOutputSchema = z.object({
   searchId: z.string(),
-  results: z.array(MediaItemSchema),
+  results: z.array(EdgeMediaItemSchema),
 })
 export type MoodSearchRefreshOutput = z.infer<typeof MoodSearchRefreshOutputSchema>
 
