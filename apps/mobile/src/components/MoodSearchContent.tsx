@@ -246,7 +246,8 @@ export function MoodSearchContent() {
 
   // ── Results view ──────────────────────────────────────────────────────────
   const currentSearch = (historyQuery.data ?? []).find((s: any) => s.id === selectedSearchId)
-  const isLoading = resultsQuery.isLoading || refreshMutation.isPending
+  const searchResults_data = searchMutation.data?.results ?? []
+  const isLoading = searchMutation.isPending || refreshMutation.isPending
 
   return (
     <View style={{ flex: 1 }}>
@@ -268,11 +269,11 @@ export function MoodSearchContent() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.gold} />
         </View>
-      ) : resultsQuery.data && resultsQuery.data.length > 0 ? (
+      ) : searchResults_data && searchResults_data.length > 0 ? (
         <FlatList
-          data={resultsQuery.data.filter(item => {
+          data={searchResults_data.filter(item => {
             const key = `${item.tmdbId}-${item.mediaType}`
-            return !passedIds.has(key) && !dismissedSet.has(key)
+            return !passedIds.has(key)
           })}
           keyExtractor={item => `${item.tmdbId}-${item.mediaType}`}
           contentContainerStyle={styles.list}
@@ -334,7 +335,7 @@ export function MoodSearchContent() {
         onAlreadyWatched={handleDismissAlreadyWatched} onNotInterested={handleDismissNotInterested}
       />
       <RatingModal
-        visible={!!ratingTarget} title={ratingTarget?.title ?? ''} tags={tagsQuery.data ?? ratingTarget?.genres ?? []}
+        visible={!!ratingTarget} title={ratingTarget?.title ?? ''} tags={ratingTarget?.genres ?? []}
         onClose={() => setRatingTarget(null)} onSubmit={handleRatingSubmit} isPending={addHistoryMutation.isPending}
       />
     </View>

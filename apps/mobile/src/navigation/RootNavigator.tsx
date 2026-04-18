@@ -21,15 +21,8 @@ const queryClient = new QueryClient({
   mutationCache: new MutationCache({
     onError: (error, _variables, _context, mutation) => {
       const key = JSON.stringify(mutation.options.mutationKey ?? '?')
-      const err = error as any
-      const msg = [
-        `[MUT ERR] ${key}`,
-        `message: ${err?.message}`,
-        `data: ${JSON.stringify(err?.data ?? null)}`,
-        `shape: ${JSON.stringify(err?.shape ?? null)}`,
-      ].join('\n')
-      console.log(msg)
-      Alert.alert('Mutation error', msg)
+      console.log(`[MUT ERR] ${key}`, (error as any)?.message)
+      Alert.alert('Something went wrong', 'Please try again.')
     },
   }),
   queryCache: new QueryCache({
@@ -78,32 +71,15 @@ const asyncStoragePersister = {
 function AppContent() {
   const { session, setSession } = useAuthStore()
   const [authScreen, setAuthScreen] = useState<'login' | 'signup'>('login')
-  const upsertUser = trpc.user.upsert.useMutation()
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
-      if (session?.user) {
-        upsertUser.mutate({
-          email: session.user.email!,
-          displayName:
-            session.user.user_metadata?.display_name ??
-            session.user.email!.split('@')[0],
-        })
-      }
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session)
-        if (session?.user) {
-          upsertUser.mutate({
-            email: session.user.email!,
-            displayName:
-              session.user.user_metadata?.display_name ??
-              session.user.email!.split('@')[0],
-          })
-        }
       }
     )
 

@@ -4,7 +4,7 @@ import {
   ActivityIndicator, StyleSheet,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { trpc } from '../lib/trpc'
+import { useTasteProfile, useUpdateServices } from '../hooks/useTasteProfile'
 import { useAuthStore } from '../store/authStore'
 import { supabase } from '../lib/supabase'
 import { colors, typography, spacing, radius, shadows } from '../theme'
@@ -14,14 +14,18 @@ const ALL_SERVICES = ['Netflix', 'Prime Video', 'Disney+', 'Max', 'Hulu', 'Apple
 export function ProfileScreen() {
   const setSession = useAuthStore(state => state.setSession)
 
-  const userQuery = trpc.user.me.useQuery()
-  const profileQuery = trpc.tasteProfile.get.useQuery()
-  const updateServicesMutation = trpc.tasteProfile.updateServices.useMutation({
-    onSuccess: () => profileQuery.refetch(),
-  })
+  const profileQuery = useTasteProfile()
+  const updateServicesMutation = useUpdateServices()
 
   const [selectedServices, setSelectedServices] = useState<string[]>([])
   const [servicesDirty, setServicesDirty] = useState(false)
+  const [userEmail, setUserEmail] = useState<string>('')
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUserEmail(user?.email ?? '')
+    })
+  }, [])
 
   useEffect(() => {
     if (profileQuery.data && !servicesDirty) {
@@ -39,11 +43,10 @@ export function ProfileScreen() {
     setSession(null)
   }
 
-  if (userQuery.isLoading || profileQuery.isLoading) {
+  if (profileQuery.isLoading) {
     return <View style={styles.centered}><ActivityIndicator color="#e8a020" size="large" /></View>
   }
 
-  const user = userQuery.data
   const profile = profileQuery.data
   const likedGenres = profile?.likedGenres ?? []
   const dislikedGenres = profile?.dislikedGenres ?? []
@@ -54,8 +57,8 @@ export function ProfileScreen() {
         <Text style={styles.header}>Profile</Text>
 
         <View style={styles.userCard}>
-          <Text style={styles.displayName}>{user?.displayName ?? '—'}</Text>
-          <Text style={styles.email}>{user?.email ?? '—'}</Text>
+          <Text style={styles.displayName}>{userEmail.split('@')[0] ?? '—'}</Text>
+          <Text style={styles.email}>{userEmail ?? '—'}</Text>
         </View>
 
         {/* Liked genres */}
