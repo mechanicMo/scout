@@ -7,7 +7,10 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { colors, typography, spacing, radius, shadows } from '../theme'
-import { trpc } from '../lib/trpc'
+import { useMoodSearch, useMoodSearchHistory, useMoodSearchRefresh } from '../hooks/useMoodSearch'
+import { useWatchlist, useAddToWatchlist, useUpdateWatchlistStatus } from '../hooks/useWatchlist'
+import { useWatchHistory, useAddToHistory } from '../hooks/useWatchHistory'
+import { useUpdateFromRating } from '../hooks/useTasteProfile'
 import type { RootStackParamList } from '../navigation/MainNavigator'
 import { DismissSheet } from './DismissSheet'
 import { RatingModal } from './RatingModal'
@@ -82,38 +85,15 @@ export function MoodSearchContent() {
   const [passedIds, setPassedIds] = useState<Set<string>>(new Set())
   const [dismissTarget, setDismissTarget] = useState<FeedTarget | null>(null)
   const [ratingTarget, setRatingTarget] = useState<FeedTarget | null>(null)
-  const utils = trpc.useUtils()
-
-  const historyQuery = trpc.moodSearch.history.useQuery()
-  const usageQuery = trpc.picks.usage.useQuery()
-  const searchMutation = trpc.moodSearch.search.useMutation({
-    onSuccess: (data) => {
-      setSearchError(null)
-      setSelectedSearchId(data.searchId)
-      setSearchText('')
-      utils.moodSearch.history.invalidate()
-      utils.picks.usage.invalidate()
-    },
-    onError: (error) => {
-      setSearchError(error.message || 'Search failed. Try again.')
-    },
-  })
-  const refreshMutation = trpc.moodSearch.refresh.useMutation({
-    onSuccess: () => { utils.moodSearch.results.invalidate() },
-  })
-  const resultsQuery = trpc.moodSearch.results.useQuery(
-    { searchId: selectedSearchId ?? '' },
-    { enabled: !!selectedSearchId }
-  )
-  const watchlistQuery = trpc.watchlist.list.useQuery({})
-  const addMutation = trpc.watchlist.add.useMutation({ onSuccess: () => utils.watchlist.list.invalidate() })
-  const updateStatusMutation = trpc.watchlist.updateStatus.useMutation({ onSuccess: () => utils.watchlist.list.invalidate() })
-  const addHistoryMutation = trpc.watchHistory.add.useMutation()
-  const tasteProfileMutation = trpc.tasteProfile.updateFromRating.useMutation()
-  const tagsQuery = trpc.tmdb.generateTags.useQuery(
-    { tmdbId: ratingTarget?.tmdbId ?? 0, mediaType: ratingTarget?.mediaType ?? 'movie' },
-    { enabled: !!ratingTarget, staleTime: Infinity }
-  )
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const historyQuery = useMoodSearchHistory()
+  const searchMutation = useMoodSearch()
+  const refreshMutation = useMoodSearchRefresh()
+  const watchlistQuery = useWatchlist()
+  const addMutation = useAddToWatchlist()
+  const updateStatusMutation = useUpdateWatchlistStatus()
+  const addHistoryMutation = useAddToHistory()
+  const tasteProfileMutation = useUpdateFromRating()
 
   const watchlistedSet = useMemo(
     () => new Set(
@@ -135,18 +115,11 @@ export function MoodSearchContent() {
 
   function handleSearch() {
     if (!searchText.trim()) return
-    searchMutation.mutate({ message: searchText.trim() })
+    searchMutation.mutate({ query: searchText.trim() })
   }
 
   function handleAdd(item: any) {
-    addMutation.mutate({
-      tmdbId: item.tmdbId,
-      mediaType: item.mediaType as 'movie' | 'tv',
-      media: {
-        title: item.title, posterPath: item.posterPath, year: item.year,
-        genres: item.genres, overview: item.overview, runtime: null, watchProviders: {},
-      },
-    })
+    addMutation.mutate({ ...item, runtime: null })
   }
 
   function handleRefresh() {
@@ -169,16 +142,10 @@ export function MoodSearchContent() {
     const key = `${target.tmdbId}-${target.mediaType}`
     setDismissTarget(null)
     setPassedIds(prev => new Set([...prev, key]))
-    try {
-      await addMutation.mutateAsync({ tmdbId: target.tmdbId, mediaType: target.mediaType, media: buildMediaPayload(target) })
-      const freshList = await utils.watchlist.list.fetch({})
-      const item = freshList?.find((w: any) => w.tmdbId === target.tmdbId && w.mediaType === target.mediaType)
-      if (item) updateStatusMutation.mutate({ id: item.id, status, resurfaceAfter })
-    } catch {
-      const freshList = await utils.watchlist.list.fetch({})
-      const item = freshList?.find((w: any) => w.tmdbId === target.tmdbId && w.mediaType === target.mediaType)
-      if (item) updateStatusMutation.mutate({ id: item.id, status, resurfaceAfter })
-    }
+    await addMutation.mutateAsync({ ...target, runtime: null })
+    const list = watchlistQuery.data ?? []
+    const item = list.find((w: any) => w.tmdbId === target.tmdbId && w.mediaType === target.mediaType)
+    if (item) updateStatusMutation.mutate({ id: item.id, status, resurfaceAfter })
   }
 
   function handleDismissNotNow() {
@@ -203,7 +170,7 @@ export function MoodSearchContent() {
     setRatingTarget(null)
     setPassedIds(prev => new Set([...prev, `${target.tmdbId}-${target.mediaType}`]))
     addHistoryMutation.mutate(
-      { tmdbId: target.tmdbId, mediaType: target.mediaType, score, tags, media: buildMediaPayload(target) },
+      { item: { ...target, runtime: null }, score, tags },
       { onSuccess: () => { if (target.genres.length > 0) tasteProfileMutation.mutate({ score, genres: target.genres }) } }
     )
   }
