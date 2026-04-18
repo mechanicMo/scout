@@ -1,13 +1,29 @@
 import { requireUserId, jsonResponse, errorResponse } from '../_shared/auth.ts'
 import { checkDailyLimit, logUsage, TooManyRequestsError } from '../_shared/rate-limit.ts'
-import { serviceClient } from '../_shared/supabase.ts'
 import { discoverTMDB, getTMDBToken } from '../_shared/tmdb.ts'
 import { rankTitlesByMood } from '../_shared/groq.ts'
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@^2.45.0'
+
+function serviceClient(): SupabaseClient {
+  const url = Deno.env.get('SUPABASE_URL')
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (!url) throw new Error('SUPABASE_URL is required')
+  if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY is required')
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    db: { schema: 'scout' },
+  }) as SupabaseClient
+}
 
 export async function handler(req: Request): Promise<Response> {
   try {
     // Require authentication
-    const userId = await requireUserId(req)
+    let userId: string
+    try {
+      userId = await requireUserId(req)
+    } catch (err) {
+      return errorResponse('Unauthorized', 401)
+    }
 
     // Parse request body
     if (req.method !== 'POST') {
@@ -83,9 +99,6 @@ export async function handler(req: Request): Promise<Response> {
   } catch (err) {
     if (err instanceof TooManyRequestsError) {
       return errorResponse(err.message, 429)
-    }
-    if (err instanceof Error && err.message === 'Unauthorized') {
-      return errorResponse('Unauthorized', 401)
     }
     console.error('mood-search-refresh error:', err)
     return errorResponse('Internal server error', 500)
