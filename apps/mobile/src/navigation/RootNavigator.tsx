@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { NavigationContainer, DarkTheme } from '@react-navigation/native'
-import { QueryClient } from '@tanstack/react-query'
+import { QueryClient, MutationCache, QueryCache } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { Alert } from 'react-native'
 import { MainNavigator } from './MainNavigator'
 import { LoginScreen } from '../screens/LoginScreen'
 import { SignUpScreen } from '../screens/SignUpScreen'
@@ -17,6 +18,25 @@ const queryClient = new QueryClient({
       gcTime: 1000 * 60 * 60 * 24, // 24 hours — keep cache for cold start
     },
   },
+  mutationCache: new MutationCache({
+    onError: (error, _variables, _context, mutation) => {
+      const key = JSON.stringify(mutation.options.mutationKey ?? '?')
+      const err = error as any
+      const msg = [
+        `[MUT ERR] ${key}`,
+        `message: ${err?.message}`,
+        `data: ${JSON.stringify(err?.data ?? null)}`,
+        `shape: ${JSON.stringify(err?.shape ?? null)}`,
+      ].join('\n')
+      console.log(msg)
+      Alert.alert('Mutation error', msg)
+    },
+  }),
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      console.log(`[QRY ERR] ${JSON.stringify(query.queryKey)}`, (error as any)?.message)
+    },
+  }),
 })
 const trpcClient = createTRPCClient()
 

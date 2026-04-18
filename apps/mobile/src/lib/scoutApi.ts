@@ -188,6 +188,15 @@ export async function tmdbGenerateTags(
 }
 
 /**
+ * Search for media titles by keyword query.
+ * Returns a list of movies and TV shows matching the query.
+ */
+export async function tmdbSearch(query: string): Promise<PicksItem[]> {
+  const response = await invokeEdgeFunction<PicksItem[]>('tmdb-search', { query })
+  return response
+}
+
+/**
  * Search for media using a mood-based query.
  * Summarizes long queries, discovers top movies/TV, and ranks by mood match.
  * Rate-limited to 3/day for all users.

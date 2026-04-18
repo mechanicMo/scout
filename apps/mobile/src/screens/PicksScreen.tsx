@@ -11,7 +11,11 @@ import type { CompositeNavigationProp } from '@react-navigation/native'
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { TabParamList } from '../navigation/TabNavigator'
-import { trpc } from '../lib/trpc'
+import { useAiRecs, useTrending } from '../hooks/usePicks'
+import { useWatchlist, useAddToWatchlist, useUpdateWatchlistStatus } from '../hooks/useWatchlist'
+import { useAddToHistory } from '../hooks/useWatchHistory'
+import { useNextSurvey, useSubmitSurvey, useSkipSurvey } from '../hooks/useSurvey'
+import { useUpdateFromRating } from '../hooks/useTasteProfile'
 import { DismissSheet } from '../components/DismissSheet'
 import { RatingModal } from '../components/RatingModal'
 import { SurveyCard } from '../components/SurveyCard'
@@ -123,7 +127,7 @@ type FeedTarget = {
   genres: string[]; posterPath: string | null; year: number | null; overview: string
 }
 
-type SurveyItem = { _type: 'survey'; question: string; options: string[]; multiSelect?: boolean }
+type SurveyItem = { _type: 'survey'; id: string; question: string; options: string[]; multiSelect?: boolean }
 type FeedItem = MediaItem | SurveyItem
 
 function isSurveyItem(item: FeedItem): item is SurveyItem {
@@ -135,34 +139,22 @@ export function PicksScreen() {
   const [dismissTarget, setDismissTarget] = useState<FeedTarget | null>(null)
   const [ratingTarget, setRatingTarget] = useState<FeedTarget | null>(null)
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
-  const [surveyDismissed, setSurveyDismissed] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const lastRefreshAt = useRef(0)
   const REFRESH_COOLDOWN_MS = 60_000
 
-  const utils = trpc.useUtils()
-  const aiRecsQuery = trpc.picks.aiRecs.useQuery(undefined, { retry: false })
-  const trendingQuery = trpc.picks.trending.useQuery(undefined, {
-    enabled: aiRecsQuery.isFetched && (aiRecsQuery.data?.length === 0 || aiRecsQuery.isError),
-  })
-  const surveyQuery = trpc.survey.next.useQuery(undefined, { retry: false })
-  const submitSurveyMutation = trpc.survey.submit.useMutation({
-    onSuccess: () => {
-      setSurveyDismissed(false)
-      utils.picks.aiRecs.invalidate()
-      utils.survey.next.invalidate()
-    },
-  })
-
-  const watchlistQuery = trpc.watchlist.list.useQuery({})
-  const addMutation = trpc.watchlist.add.useMutation({ onSuccess: () => utils.watchlist.list.invalidate() })
-  const updateStatusMutation = trpc.watchlist.updateStatus.useMutation({ onSuccess: () => utils.watchlist.list.invalidate() })
-  const addHistoryMutation = trpc.watchHistory.add.useMutation()
-  const tasteProfileMutation = trpc.tasteProfile.updateFromRating.useMutation()
-  const tagsQuery = trpc.tmdb.generateTags.useQuery(
-    { tmdbId: ratingTarget?.tmdbId ?? 0, mediaType: ratingTarget?.mediaType ?? 'movie' },
-    { enabled: !!ratingTarget, staleTime: Infinity }
+  const aiRecsQuery = useAiRecs()
+  const trendingQuery = useTrending(
+    aiRecsQuery.isFetched && (aiRecsQuery.data?.length === 0 || aiRecsQuery.isError)
   )
+  const surveyQuery = useNextSurvey()
+  const submitSurveyMutation = useSubmitSurvey()
+  const skipSurveyMutation = useSkipSurvey()
+  const watchlistQuery = useWatchlist()
+  const addMutation = useAddToWatchlist()
+  const updateStatusMutation = useUpdateWatchlistStatus()
+  const addHistoryMutation = useAddToHistory()
+  const tasteProfileMutation = useUpdateFromRating()
 
   // Use AI recs when available, fall back to trending
   const baseItems: MediaItem[] = (aiRecsQuery.data?.length ?? 0) > 0
@@ -179,8 +171,14 @@ export function PicksScreen() {
   })
 
   // Insert survey card at position 2 (after 2 media items) if available
-  const surveyCard = surveyQuery.data && !surveyDismissed
-    ? { _type: 'survey' as const, question: surveyQuery.data.question, options: surveyQuery.data.options, multiSelect: surveyQuery.data.multiSelect }
+  const surveyCard = surveyQuery.data
+    ? {
+        _type: 'survey' as const,
+        id: surveyQuery.data.id,
+        question: surveyQuery.data.question,
+        options: surveyQuery.data.options,
+        multiSelect: surveyQuery.data.multiSelect,
+      }
     : null
 
   const feedItems: FeedItem[] = surveyCard
@@ -214,20 +212,19 @@ export function PicksScreen() {
   }
 
   function handleAdd(item: MediaItem) {
-    addMutation.mutate({ tmdbId: item.tmdbId, mediaType: item.mediaType, media: buildMediaPayload(item) })
+    addMutation.mutate(item)
   }
 
   async function dismissWithStatus(target: FeedTarget, status: 'dismissed_not_now' | 'dismissed_never', resurfaceAfter?: string) {
     const key = `${target.tmdbId}-${target.mediaType}`
     setDismissTarget(null)
-    try {
-      await addMutation.mutateAsync({ tmdbId: target.tmdbId, mediaType: target.mediaType, media: buildMediaPayload(target) })
-      const { data } = await utils.watchlist.list.refetch()
-      const item = data?.find(w => w.tmdbId === target.tmdbId && w.mediaType === target.mediaType)
-      if (item) updateStatusMutation.mutate({ id: item.id, status, resurfaceAfter })
-    } finally {
-      setDismissedIds(prev => new Set([...prev, key]))
-    }
+    setDismissedIds(prev => new Set([...prev, key]))
+
+    // Ensure item is in watchlist first (upsert)
+    await addMutation.mutateAsync({ ...target, runtime: null })
+    const list = watchlistQuery.data ?? []
+    const item = list.find(w => w.tmdbId === target.tmdbId && w.mediaType === target.mediaType)
+    if (item) updateStatusMutation.mutate({ id: item.id, status, resurfaceAfter })
   }
 
   function handleDismissNotNow() {
@@ -248,18 +245,13 @@ export function PicksScreen() {
   function handleRatingSubmit(score: number, tags: string[]) {
     if (!ratingTarget) return
     const target = ratingTarget
-    // Close modal and hide card immediately
     setRatingTarget(null)
     setDismissedIds(prev => new Set([...prev, `${target.tmdbId}-${target.mediaType}`]))
-    // Continue API calls in background
-    addHistoryMutation.mutate(
-      { tmdbId: target.tmdbId, mediaType: target.mediaType, score, tags, media: buildMediaPayload(target) },
-      {
-        onSuccess: () => {
-          if (target.genres.length > 0) tasteProfileMutation.mutate({ score, genres: target.genres })
-        },
-      }
-    )
+    addHistoryMutation.mutate({ item: { ...target, runtime: null }, score, tags }, {
+      onSuccess: () => {
+        if (target.genres.length > 0) tasteProfileMutation.mutate({ score, genres: target.genres })
+      },
+    })
   }
 
   if (isLoading) return <View style={styles.centered}><ActivityIndicator color="#e8a020" size="large" /></View>
@@ -304,11 +296,14 @@ export function PicksScreen() {
                 options={item.options}
                 multiSelect={item.multiSelect}
                 onAnswer={answer => {
-                  setSurveyDismissed(true)
-                  submitSurveyMutation.mutate({ question: item.question, answer })
+                  submitSurveyMutation.mutate({
+                    id: item.id,
+                    question: item.question,
+                    answer,
+                  })
                 }}
-                onSkip={() => setSurveyDismissed(true)}
-                isPending={submitSurveyMutation.isPending}
+                onSkip={() => skipSurveyMutation.mutate({ id: item.id })}
+                isPending={submitSurveyMutation.isPending || skipSurveyMutation.isPending}
               />
             )
           }
@@ -386,7 +381,7 @@ export function PicksScreen() {
         onAlreadyWatched={handleDismissAlreadyWatched} onNotInterested={handleDismissNotInterested}
       />
       <RatingModal
-        visible={!!ratingTarget} title={ratingTarget?.title ?? ''} tags={tagsQuery.data ?? ratingTarget?.genres ?? []}
+        visible={!!ratingTarget} title={ratingTarget?.title ?? ''} tags={ratingTarget?.genres ?? []}
         onClose={() => setRatingTarget(null)} onSubmit={handleRatingSubmit} isPending={addHistoryMutation.isPending}
       />
     </SafeAreaView>

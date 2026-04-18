@@ -10,7 +10,8 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
-import { trpc } from '../lib/trpc'
+import { useSearchTitles } from '../hooks/useMediaDetail'
+import { useWatchlist, useAddToWatchlist } from '../hooks/useWatchlist'
 import type { MediaItem } from '@scout/shared'
 import type { RootStackParamList } from '../navigation/MainNavigator'
 import type { TabParamList } from '../navigation/TabNavigator'
@@ -39,15 +40,9 @@ export function SearchScreen({ route, navigation }: Props) {
     return () => clearTimeout(timer)
   }, [query])
 
-  const utils = trpc.useUtils()
-  const searchQuery = trpc.tmdb.search.useQuery(
-    { query: debouncedQuery },
-    { enabled: mode === 'titles' && debouncedQuery.length > 1 }
-  )
-  const watchlistQuery = trpc.watchlist.list.useQuery({})
-  const addMutation = trpc.watchlist.add.useMutation({
-    onSuccess: () => utils.watchlist.list.invalidate(),
-  })
+  const searchQuery = useSearchTitles(mode === 'titles' ? debouncedQuery : '')
+  const watchlistQuery = useWatchlist()
+  const addMutation = useAddToWatchlist()
 
   const watchlistedSet = useMemo(() => new Set(
     watchlistQuery.data
@@ -56,15 +51,7 @@ export function SearchScreen({ route, navigation }: Props) {
   ), [watchlistQuery.data])
 
   function handleAdd(item: MediaItem) {
-    addMutation.mutate({
-      tmdbId: item.tmdbId,
-      mediaType: item.mediaType,
-      media: {
-        title: item.title, posterPath: item.posterPath, year: item.year,
-        genres: item.genres, overview: item.overview,
-        runtime: item.runtime, watchProviders: item.watchProviders,
-      },
-    })
+    addMutation.mutate(item)
   }
 
   return (

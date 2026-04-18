@@ -1,0 +1,228 @@
+<style>
+  :root {
+    --fuchsia: #c026d3;
+    --violet: #7c3aed;
+    --bg: #100a04;
+    --surface: #1a0f07;
+    --surfaceRaised: #261509;
+    --gold: #e8a020;
+    --text: #f5e6d0;
+    --textMuted: #a07848;
+    --textDim: #7a5535;
+    --border: #3d2a14;
+    --purple-dark: #0e0520;
+    --purple-mid: #1a0930;
+    --purple-border: rgba(192,38,211,0.2);
+  }
+
+  .phone-row { display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; }
+
+  .phone {
+    width: 280px;
+    background: var(--bg);
+    border-radius: 28px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    flex-shrink: 0;
+  }
+
+  .phone-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--textMuted);
+    text-align: center;
+    margin-bottom: 10px;
+  }
+
+  /* --- Shared --- */
+  .screen-header { padding: 18px 16px 0; background: var(--bg); }
+  .screen-title { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 14px; }
+
+  /* Toggle styles */
+  .toggle-pill {
+    display: flex;
+    background: var(--surface);
+    border-radius: 24px;
+    padding: 3px;
+    margin-bottom: 14px;
+    border: 1px solid var(--border);
+    gap: 2px;
+  }
+  .toggle-item {
+    flex: 1;
+    text-align: center;
+    padding: 7px 0;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .toggle-item.active-gold { background: var(--gold); color: var(--bg); }
+  .toggle-item.active-fuchsia {
+    background: linear-gradient(135deg, var(--violet), var(--fuchsia));
+    color: white;
+  }
+  .toggle-item.inactive { color: var(--textDim); }
+
+  /* Title search body */
+  .title-input {
+    background: var(--surfaceRaised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-size: 14px;
+    margin: 0 16px 10px;
+  }
+  .search-result {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .result-poster { width: 36px; height: 54px; background: var(--surface); border-radius: 5px; flex-shrink: 0; border: 1px solid var(--border); }
+  .result-info { flex: 1; }
+  .result-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+  .result-meta { font-size: 11px; color: var(--textMuted); }
+  .result-add { width: 28px; height: 28px; border-radius: 14px; background: var(--gold); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: var(--bg); flex-shrink: 0; }
+
+  /* Mood gradient header */
+  .mood-header {
+    background: linear-gradient(160deg, var(--purple-mid) 0%, #0e0520 50%, var(--bg) 100%);
+    padding: 18px 16px 16px;
+    border-bottom: 1px solid var(--purple-border);
+  }
+  .mood-header-inner { display: flex; gap: 8px; align-items: center; }
+  .mood-input {
+    flex: 1;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(192,38,211,0.3);
+    border-radius: 24px;
+    padding: 9px 14px;
+    color: rgba(255,255,255,0.35);
+    font-size: 13px;
+  }
+  .mood-send {
+    width: 34px; height: 34px; border-radius: 17px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--violet), var(--fuchsia));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: white; font-weight: 700;
+    box-shadow: 0 0 12px rgba(192,38,211,0.4);
+  }
+  .mood-body { padding: 14px 16px; }
+  .mood-section { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--textMuted); margin-bottom: 8px; }
+  .mood-hist-card {
+    background: var(--surfaceRaised); border-radius: 10px; padding: 10px 12px; margin-bottom: 7px;
+    border: 1px solid var(--border);
+  }
+  .mood-hist-title { font-size: 13px; color: var(--text); font-weight: 600; margin-bottom: 3px; }
+  .mood-hist-meta { font-size: 10px; color: var(--textMuted); }
+
+  /* Option wrapper */
+  .opt-wrap {
+    cursor: pointer;
+    border-radius: 32px;
+    border: 2px solid transparent;
+    padding: 4px;
+    transition: border-color 0.2s;
+  }
+  .opt-wrap.selected { border-color: var(--fuchsia); }
+  .opt-wrap:hover { border-color: rgba(192,38,211,0.4); }
+</style>
+
+<h2>Search Tab — Mode Switcher</h2>
+<p class="subtitle">The toggle switches between title search and mood search. Which placement feels right?</p>
+
+<div class="phone-row">
+
+  <!-- Option A: Toggle above search input (always visible) -->
+  <div>
+    <div class="phone-label">A · Toggle above input</div>
+    <div class="opt-wrap option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="screen-header">
+        <div class="screen-title">Search</div>
+        <div class="toggle-pill">
+          <div class="toggle-item active-gold">Titles</div>
+          <div class="toggle-item inactive">✦ Mood</div>
+        </div>
+      </div>
+      <div class="title-input" style="color:rgba(200,160,100,0.4)">Movies, shows...</div>
+      <div class="search-result">
+        <div class="result-poster"></div>
+        <div class="result-info"><div class="result-title">Inception</div><div class="result-meta">2010 · Movie · Sci-Fi</div></div>
+        <div class="result-add">+</div>
+      </div>
+      <div class="search-result">
+        <div class="result-poster"></div>
+        <div class="result-info"><div class="result-title">Interstellar</div><div class="result-meta">2014 · Movie · Drama</div></div>
+        <div class="result-add">+</div>
+      </div>
+      <div style="height:80px"></div>
+    </div>
+    </div>
+  </div>
+
+  <!-- Option A — Mood active state -->
+  <div>
+    <div class="phone-label">A · Mood mode active</div>
+    <div class="opt-wrap option" data-choice="a-mood" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="screen-header">
+        <div class="screen-title">Search</div>
+        <div class="toggle-pill">
+          <div class="toggle-item inactive">Titles</div>
+          <div class="toggle-item active-fuchsia">✦ Mood</div>
+        </div>
+      </div>
+      <div class="mood-header" style="margin:0;border-radius:0">
+        <div class="mood-header-inner">
+          <div class="mood-input">Tell Scout what you're in the mood for...</div>
+          <div class="mood-send">→</div>
+        </div>
+      </div>
+      <div class="mood-body">
+        <div class="mood-section">Recent searches</div>
+        <div class="mood-hist-card"><div class="mood-hist-title">Funny action from 2024</div><div class="mood-hist-meta">2h ago</div></div>
+        <div class="mood-hist-card"><div class="mood-hist-title">Dark psychological thriller</div><div class="mood-hist-meta">yesterday</div></div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- Option B: Single input that switches character -->
+  <div>
+    <div class="phone-label">B · Mood button beside input</div>
+    <div class="opt-wrap option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="screen-header">
+        <div class="screen-title">Search</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;padding:0 16px 12px">
+        <div class="title-input" style="margin:0;flex:1">Movies, shows...</div>
+        <div style="width:36px;height:36px;border-radius:18px;flex-shrink:0;background:linear-gradient(135deg,#7c3aed,#c026d3);display:flex;align-items:center;justify-content:center;font-size:14px;color:white;box-shadow:0 0 12px rgba(192,38,211,0.4)">✦</div>
+      </div>
+      <div class="search-result">
+        <div class="result-poster"></div>
+        <div class="result-info"><div class="result-title">Inception</div><div class="result-meta">2010 · Movie · Sci-Fi</div></div>
+        <div class="result-add">+</div>
+      </div>
+      <div class="search-result">
+        <div class="result-poster"></div>
+        <div class="result-info"><div class="result-title">Interstellar</div><div class="result-meta">2014 · Movie · Drama</div></div>
+        <div class="result-add">+</div>
+      </div>
+      <div style="padding:12px 16px 0;font-size:11px;color:var(--textDim)">Tap ✦ to search by mood</div>
+      <div style="height:60px"></div>
+    </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:24px">When Picks CTA is tapped → jumps to Search tab and activates Mood mode automatically in both options.</p>

@@ -1,0 +1,7 @@
+{"type":"server-started","port":58788,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:58788","screen_dir":"/Users/mohitramchandani/Code/scout/.superpowers/brainstorm/17283-1776231416/content","state_dir":"/Users/mohitramchandani/Code/scout/.superpowers/brainstorm/17283-1776231416/state"}
+{"type":"screen-added","file":"/Users/mohitramchandani/Code/scout/.superpowers/brainstorm/17283-1776231416/content/direction.html"}
+{"type":"screen-added","file":"/Users/mohitramchandani/Code/scout/.superpowers/brainstorm/17283-1776231416/content/search-tab-toggle.html"}
+{"source":"user-event","type":"click","text":"Search\n        \n          Titles\n          ✦ Mood\n        \n      \n      Movies, shows...\n      \n        \n        Inception2010 · Movie · Sci-Fi\n        +\n      \n      \n        \n        Interstellar2014 · Movie · Drama\n        +","choice":"a","id":null,"timestamp":1776231730752}
+{"source":"user-event","type":"click","text":"Search\n        \n          Titles\n          ✦ Mood\n        \n      \n      \n        \n          Tell Scout what you're in the mood for...\n          →\n        \n      \n      \n        Recent searches\n        Funny action from 20242h ago\n        Dark psychological thrilleryesterday","choice":"a-mood","id":null,"timestamp":1776231731826}
+{"type":"screen-added","file":"/Users/mohitramchandani/Code/scout/.superpowers/brainstorm/17283-1776231416/content/waiting.html"}
+{"type":"server-stopped","reason":"idle timeout"}

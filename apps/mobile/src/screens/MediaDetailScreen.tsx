@@ -7,7 +7,14 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigation/MainNavigator'
 import { LinearGradient } from 'expo-linear-gradient'
-import { trpc } from '../lib/trpc'
+import {
+  useWatchlist, useAddToWatchlist, useRemoveFromWatchlist, useUpdateWatchingStatus,
+} from '../hooks/useWatchlist'
+import {
+  useWatchHistory, useAddToHistory, useRemoveFromHistory,
+} from '../hooks/useWatchHistory'
+import { useMediaDetail, useGenerateTags } from '../hooks/useMediaDetail'
+import { useUpdateFromRating } from '../hooks/useTasteProfile'
 import { WatchingStatusModal } from '../components/WatchingStatusModal'
 import { RatingModal } from '../components/RatingModal'
 import { StatusSheet, type StatusAction } from '../components/StatusSheet'
@@ -41,40 +48,16 @@ export function MediaDetailScreen({ route, navigation }: Props) {
   const [isStartingWatch, setIsStartingWatch] = useState(false)
   const [showStatusSheet, setShowStatusSheet] = useState(false)
 
-  const utils = trpc.useUtils()
-  const mediaQuery = trpc.tmdb.getMedia.useQuery({ tmdbId, mediaType })
-  const watchlistQuery = trpc.watchlist.list.useQuery({})
-  const updateWatchingMutation = trpc.watchlist.updateWatching.useMutation()
-  const addHistoryMutation = trpc.watchHistory.add.useMutation()
-  const removeHistoryMutation = trpc.watchHistory.remove.useMutation({
-    onSuccess: () => { utils.watchlist.list.invalidate(); historyQuery.refetch() },
-  })
-  const tasteProfileMutation = trpc.tasteProfile.updateFromRating.useMutation()
-  const historyQuery = trpc.watchHistory.list.useQuery()
-  const tagsQuery = trpc.tmdb.generateTags.useQuery(
-    { tmdbId, mediaType },
-    { enabled: showRatingModal, staleTime: Infinity }
-  )
-
-  const addMutation = trpc.watchlist.add.useMutation({
-    onSuccess: (data) => {
-      utils.watchlist.list.invalidate()
-      setWatchingTargetId(data.id)
-      if (mediaType === 'tv') {
-        // Auto-set to S1E1 in-progress
-        updateWatchingMutation.mutate(
-          { id: data.id, watchingStatus: 'watching', currentSeason: 1, currentEpisode: 1 },
-          { onSuccess: () => { utils.watchlist.list.invalidate(); setIsStartingWatch(false) } }
-        )
-      } else {
-        setIsStartingWatch(false)
-      }
-    },
-    onError: () => setIsStartingWatch(false),
-  })
-  const removeMutation = trpc.watchlist.remove.useMutation({
-    onSuccess: () => utils.watchlist.list.invalidate(),
-  })
+  const mediaQuery = useMediaDetail(tmdbId, mediaType)
+  const watchlistQuery = useWatchlist()
+  const historyQuery = useWatchHistory()
+  const tagsQuery = useGenerateTags(tmdbId, mediaType, showRatingModal)
+  const addMutation = useAddToWatchlist()
+  const removeMutation = useRemoveFromWatchlist()
+  const updateWatchingMutation = useUpdateWatchingStatus()
+  const addHistoryMutation = useAddToHistory()
+  const removeHistoryMutation = useRemoveFromHistory()
+  const tasteProfileMutation = useUpdateFromRating()
 
   const watchlistItem = watchlistQuery.data?.find(
     (w: { id: string; tmdbId: number; mediaType: string; status: string }) =>
@@ -96,20 +79,7 @@ export function MediaDetailScreen({ route, navigation }: Props) {
     if (inWatchlist && watchlistItem) {
       removeMutation.mutate({ id: watchlistItem.id })
     } else {
-      const m = mediaQuery.data
-      addMutation.mutate({
-        tmdbId: m.tmdbId,
-        mediaType: m.mediaType,
-        media: {
-          title: m.title,
-          posterPath: m.posterPath,
-          year: m.year,
-          genres: m.genres,
-          overview: m.overview,
-          runtime: m.runtime,
-          watchProviders: (m.watchProviders ?? {}) as Record<string, unknown>,
-        },
-      })
+      addMutation.mutate(mediaQuery.data)
     }
   }
 
@@ -118,44 +88,34 @@ export function MediaDetailScreen({ route, navigation }: Props) {
     if (!targetId) return
     updateWatchingMutation.mutate(
       { id: targetId, watchingStatus, currentSeason: season, currentEpisode: episode },
-      { onSuccess: () => { setShowWatchingModal(false); utils.watchlist.list.invalidate() } }
+      { onSuccess: () => setShowWatchingModal(false) },
     )
   }
 
   function handleStartWatching() {
     if (!mediaQuery.data) return
-    const m = mediaQuery.data
     if (watchlistEntry) {
-      // Optimistic update — immediately mark as watching so UI responds instantly
-      const snapshot = utils.watchlist.list.getData({})
-      utils.watchlist.list.setData({}, (old: any) =>
-        old?.map((w: any) => w.id === watchlistEntry.id
-          ? { ...w, watchingStatus: 'watching', currentSeason: 1, currentEpisode: 1 }
-          : w
-        )
-      )
-      updateWatchingMutation.mutate(
-        { id: watchlistEntry.id, watchingStatus: 'watching', currentSeason: 1, currentEpisode: 1 },
-        {
-          onSuccess: () => utils.watchlist.list.invalidate(),
-          onError: () => utils.watchlist.list.setData({}, snapshot),
-        }
-      )
+      updateWatchingMutation.mutate({
+        id: watchlistEntry.id, watchingStatus: 'watching',
+        currentSeason: 1, currentEpisode: 1,
+      })
     } else {
-      // Add to watchlist first — isStartingWatch keeps the button locked until the full chain finishes
       setIsStartingWatch(true)
-      addMutation.mutate({
-        tmdbId: m.tmdbId,
-        mediaType: m.mediaType,
-        media: {
-          title: m.title,
-          posterPath: m.posterPath,
-          year: m.year,
-          genres: m.genres,
-          overview: m.overview,
-          runtime: m.runtime,
-          watchProviders: (m.watchProviders ?? {}) as Record<string, unknown>,
+      addMutation.mutate(mediaQuery.data, {
+        onSuccess: async () => {
+          // Refetch to get the new watchlist id, then update watching status
+          const { data: refetched } = await watchlistQuery.refetch()
+          const newItem = refetched?.find(w => w.tmdbId === tmdbId && w.mediaType === mediaType)
+          if (newItem && mediaType === 'tv') {
+            updateWatchingMutation.mutate(
+              { id: newItem.id, watchingStatus: 'watching', currentSeason: 1, currentEpisode: 1 },
+              { onSuccess: () => setIsStartingWatch(false), onError: () => setIsStartingWatch(false) },
+            )
+          } else {
+            setIsStartingWatch(false)
+          }
         },
+        onError: () => setIsStartingWatch(false),
       })
     }
   }
@@ -171,30 +131,16 @@ export function MediaDetailScreen({ route, navigation }: Props) {
 
   function handleRatingSubmit(score: number, tags: string[]) {
     if (!mediaQuery.data) return
-    const m = mediaQuery.data
     addHistoryMutation.mutate(
-      {
-        tmdbId,
-        mediaType,
-        score,
-        tags,
-        media: {
-          title: m.title,
-          posterPath: m.posterPath,
-          year: m.year,
-          genres: m.genres,
-          overview: m.overview,
-          runtime: m.runtime,
-          watchProviders: (m.watchProviders ?? {}) as Record<string, unknown>,
-        },
-      },
+      { item: mediaQuery.data, score, tags },
       {
         onSuccess: () => {
-          if (m.genres.length > 0) tasteProfileMutation.mutate({ score, genres: m.genres })
+          if (mediaQuery.data!.genres.length > 0) {
+            tasteProfileMutation.mutate({ score, genres: mediaQuery.data!.genres })
+          }
           setShowRatingModal(false)
-          historyQuery.refetch()
         },
-      }
+      },
     )
   }
 

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { MediaType } from '@scout/shared'
-import { tmdbGetMedia, tmdbGenerateTags } from '../lib/scoutApi'
-import type { MediaDetails, TmdbGenerateTagsResponse } from '../lib/scoutApi'
+import { tmdbGetMedia, tmdbGenerateTags, tmdbSearch } from '../lib/scoutApi'
+import type { MediaDetails, TmdbGenerateTagsResponse, PicksItem } from '../lib/scoutApi'
 import { queryKeys } from '../queries/keys'
 
 /**
@@ -24,12 +24,12 @@ export function useMediaDetail(tmdbId: number, mediaType: MediaType) {
  * Mutation to generate AI-powered tags for a media item with optimistic UI.
  * Uses Groq LLM to analyze the content and suggest relevant tags.
  */
-export function useGenerateTags() {
+export function useGenerateTags(tmdbId?: number, mediaType?: MediaType, enabled?: boolean) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ tmdbId, mediaType }: { tmdbId: number; mediaType: MediaType }) => {
-      const tags = await tmdbGenerateTags(tmdbId, mediaType)
+    mutationFn: async ({ tmdbId: id, mediaType: type }: { tmdbId: number; mediaType: MediaType }) => {
+      const tags = await tmdbGenerateTags(id, type)
       return tags
     },
     onMutate: async (variables) => {
@@ -62,5 +62,18 @@ export function useGenerateTags() {
         )
       }
     },
+  })
+}
+
+/**
+ * Search TMDB for media titles by keyword query.
+ * Returns movies and TV shows matching the query.
+ * Requires at least 2 characters to execute.
+ */
+export function useSearchTitles(query: string) {
+  return useQuery({
+    queryKey: ['scout', 'tmdb', 'search', query],
+    queryFn: () => tmdbSearch(query),
+    enabled: query.length >= 2,
   })
 }

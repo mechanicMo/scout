@@ -134,6 +134,22 @@ export type TmdbGenerateTagsInput = z.infer<typeof TmdbGenerateTagsInputSchema>
 export const TmdbGenerateTagsOutputSchema = z.array(z.string())
 export type TmdbGenerateTagsOutput = z.infer<typeof TmdbGenerateTagsOutputSchema>
 
+/**
+ * Input for /tmdb/search endpoint
+ * Searches TMDB for titles matching query
+ */
+export const TmdbSearchInputSchema = z.object({
+  query: z.string().min(1),
+})
+export type TmdbSearchInput = z.infer<typeof TmdbSearchInputSchema>
+
+/**
+ * Output for /tmdb/search endpoint
+ * Returns array of media items matching the query
+ */
+export const TmdbSearchOutputSchema = z.array(EdgeMediaItemSchema)
+export type TmdbSearchOutput = z.infer<typeof TmdbSearchOutputSchema>
+
 // ============================================================================
 // Survey Questions
 // ============================================================================

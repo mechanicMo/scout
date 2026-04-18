@@ -5,7 +5,12 @@ import {
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
-import { trpc } from '../lib/trpc'
+import {
+  useWatchlist, useRemoveFromWatchlist, useUpdateWatchlistStatus,
+} from '../hooks/useWatchlist'
+import { useWatchHistory, useAddToHistory } from '../hooks/useWatchHistory'
+import { useUpdateFromRating } from '../hooks/useTasteProfile'
+import { useGenerateTags } from '../hooks/useMediaDetail'
 import { DismissSheet } from '../components/DismissSheet'
 import { RatingModal } from '../components/RatingModal'
 import { EpisodeStepper } from '../components/EpisodeStepper'
@@ -53,28 +58,14 @@ export function WatchlistScreen() {
     id: string; mediaType: 'movie' | 'tv'; title: string; totalSeasons: number | null
   } | null>(null)
 
-  const utils = trpc.useUtils()
-  const listQuery = trpc.watchlist.list.useQuery({ status: 'saved' })
-  const historyQuery = trpc.watchHistory.list.useQuery()
-
-  const removeMutation = trpc.watchlist.remove.useMutation({
-    onSuccess: () => utils.watchlist.list.invalidate(),
-  })
-  const updateStatusMutation = trpc.watchlist.updateStatus.useMutation({
-    onSuccess: () => utils.watchlist.list.invalidate(),
-  })
-  const addHistoryMutation = trpc.watchHistory.add.useMutation()
-  const tasteProfileMutation = trpc.tasteProfile.updateFromRating.useMutation()
-  const updateWatchingMutation = trpc.watchlist.updateWatching.useMutation({
-    onSuccess: () => {
-      utils.watchlist.list.invalidate()
-      setEpisodeUpdateTarget(null)
-    },
-  })
-  const tagsQuery = trpc.tmdb.generateTags.useQuery(
-    { tmdbId: ratingTarget?.tmdbId ?? 0, mediaType: ratingTarget?.mediaType ?? 'movie' },
-    { enabled: !!ratingTarget, staleTime: Infinity }
-  )
+  const listQuery = useWatchlist()
+  const historyQuery = useWatchHistory()
+  const removeMutation = useRemoveFromWatchlist()
+  const updateStatusMutation = useUpdateWatchlistStatus()
+  const addHistoryMutation = useAddToHistory()
+  const tasteProfileMutation = useUpdateFromRating()
+  const updateWatchingMutation = useUpdateWatchingStatus()
+  const tagsQuery = useGenerateTags(ratingTarget?.tmdbId ?? 0, ratingTarget?.mediaType ?? 'movie', !!ratingTarget)
 
   const allGenres = useMemo(() => {
     const genres = new Set<string>()
@@ -133,19 +124,15 @@ export function WatchlistScreen() {
   function handleRatingSubmit(score: number, tags: string[]) {
     if (!ratingTarget) return
     const target = ratingTarget
-    // Close modal immediately
     setRatingTarget(null)
-    // Continue API calls in background
     addHistoryMutation.mutate(
-      { tmdbId: target.tmdbId, mediaType: target.mediaType, score, tags },
+      { item: { ...target, runtime: null }, score, tags },
       {
         onSuccess: () => {
           if (target.genres && target.genres.length > 0) {
             tasteProfileMutation.mutate({ score, genres: target.genres })
           }
           removeMutation.mutate({ id: target.id })
-          historyQuery.refetch()
-          listQuery.refetch()
         },
       }
     )

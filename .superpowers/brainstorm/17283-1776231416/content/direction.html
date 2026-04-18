@@ -1,0 +1,198 @@
+<style>
+  :root {
+    --fuchsia: #c026d3;
+    --violet: #7c3aed;
+    --bg: #100a04;
+    --surface: #1a0f07;
+    --surfaceRaised: #261509;
+    --gold: #e8a020;
+    --text: #f5e6d0;
+    --textMuted: #a07848;
+    --border: #3d2a14;
+    --purple-bg: #0e0818;
+    --purple-surface: #180d25;
+    --purple-border: #3b1f5e;
+  }
+
+  .directions { display: flex; flex-direction: column; gap: 28px; }
+
+  .dir-card {
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.2s, transform 0.15s;
+  }
+  .dir-card:hover { transform: translateY(-2px); }
+  .dir-card.selected { border-color: var(--fuchsia); }
+
+  .dir-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 10px 16px 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dir-desc {
+    font-size: 13px;
+    padding: 0 16px 14px;
+    line-height: 1.5;
+    opacity: 0.75;
+  }
+
+  /* ── Direction A: Accent Injection ── */
+  .dir-a { background: var(--bg); border-color: var(--purple-border); }
+  .dir-a .dir-label { color: var(--fuchsia); }
+  .dir-a .mock-screen { background: var(--bg); padding: 16px; border-top: 1px solid var(--border); }
+  .dir-a .mock-input-row { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
+  .dir-a .mock-input {
+    flex: 1; background: var(--surface); border: 1.5px solid var(--fuchsia);
+    border-radius: 24px; padding: 10px 16px; color: var(--text); font-size: 13px;
+    box-shadow: 0 0 12px rgba(192,38,211,0.25);
+  }
+  .dir-a .mock-btn {
+    width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--violet), var(--fuchsia));
+    font-size: 15px; color: white; font-weight: 700; flex-shrink: 0;
+    box-shadow: 0 0 14px rgba(192,38,211,0.45);
+  }
+  .dir-a .mock-section { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fuchsia); margin-bottom: 8px; opacity: 0.85; }
+  .dir-a .mock-hist-card {
+    background: var(--surfaceRaised); border-radius: 10px; padding: 10px 12px; margin-bottom: 7px;
+    border-left: 3px solid var(--fuchsia); border-top: 1px solid var(--purple-border);
+    border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  }
+  .dir-a .mock-hist-title { font-size: 13px; color: var(--text); font-weight: 600; margin-bottom: 3px; }
+  .dir-a .mock-hist-meta { font-size: 10px; color: var(--textMuted); }
+
+  /* ── Direction B: Immersive Purple World ── */
+  .dir-b { background: var(--purple-bg); border-color: var(--purple-border); }
+  .dir-b .dir-label { color: #d946ef; }
+  .dir-b .mock-screen { background: var(--purple-bg); padding: 16px; border-top: 1px solid var(--purple-border); }
+  .dir-b .mock-input-row { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
+  .dir-b .mock-input {
+    flex: 1; background: var(--purple-surface); border: 1px solid var(--purple-border);
+    border-radius: 24px; padding: 10px 16px; color: #e8d5ff; font-size: 13px;
+  }
+  .dir-b .mock-btn {
+    width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--violet), var(--fuchsia));
+    font-size: 15px; color: white; font-weight: 700; flex-shrink: 0;
+    box-shadow: 0 0 16px rgba(192,38,211,0.5);
+  }
+  .dir-b .mock-section { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #9f72cc; margin-bottom: 8px; }
+  .dir-b .mock-hist-card {
+    background: var(--purple-surface); border-radius: 10px; padding: 10px 12px; margin-bottom: 7px;
+    border: 1px solid var(--purple-border);
+  }
+  .dir-b .mock-hist-title { font-size: 13px; color: #e8d5ff; font-weight: 600; margin-bottom: 3px; }
+  .dir-b .mock-hist-meta { font-size: 10px; color: #9f72cc; }
+  .dir-b .mock-sparkle { color: #d946ef; margin-right: 4px; }
+
+  /* ── Direction C: Gradient Header Portal ── */
+  .dir-c { background: var(--bg); border-color: var(--purple-border); }
+  .dir-c .dir-label { color: var(--fuchsia); }
+  .dir-c .mock-screen { border-top: 1px solid var(--border); }
+  .dir-c .mock-header {
+    background: linear-gradient(160deg, #1a0930 0%, #0e0520 45%, var(--bg) 100%);
+    padding: 20px 16px 18px;
+    border-bottom: 1px solid rgba(192,38,211,0.2);
+  }
+  .dir-c .mock-header-title {
+    font-size: 22px; font-weight: 700; color: white; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .dir-c .mock-header-title .sparkle { color: var(--fuchsia); font-size: 18px; }
+  .dir-c .mock-input-row { display: flex; gap: 8px; align-items: center; }
+  .dir-c .mock-input {
+    flex: 1; background: rgba(255,255,255,0.07); border: 1px solid rgba(192,38,211,0.3);
+    border-radius: 24px; padding: 10px 16px; color: white; font-size: 13px;
+    backdrop-filter: blur(8px);
+  }
+  .dir-c .mock-btn {
+    width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--violet), var(--fuchsia));
+    font-size: 15px; color: white; font-weight: 700; flex-shrink: 0;
+    box-shadow: 0 0 16px rgba(192,38,211,0.5);
+  }
+  .dir-c .mock-body { background: var(--bg); padding: 16px; }
+  .dir-c .mock-section { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--textMuted); margin-bottom: 8px; }
+  .dir-c .mock-hist-card {
+    background: var(--surfaceRaised); border-radius: 10px; padding: 10px 12px; margin-bottom: 7px;
+    border: 1px solid var(--border);
+  }
+  .dir-c .mock-hist-title { font-size: 13px; color: var(--text); font-weight: 600; margin-bottom: 3px; }
+  .dir-c .mock-hist-meta { font-size: 10px; color: var(--textMuted); }
+
+  .placeholder-text { color: rgba(200,180,220,0.35); }
+</style>
+
+<h2>Mood Search — Design Direction</h2>
+<p class="subtitle">The button is already fuchsia/violet. Which energy should the whole screen carry?</p>
+
+<div class="directions">
+
+  <!-- A -->
+  <div class="dir-card dir-a option" data-choice="a" onclick="toggleSelect(this)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px 0">
+      <div class="dir-label" style="padding:0">A &nbsp;·&nbsp; Accent Injection</div>
+      <div class="letter" style="font-size:11px;opacity:0.5">click to select</div>
+    </div>
+    <div class="dir-desc">Keep the dark gold/black world — inject fuchsia at the edges. Input border glows, send button becomes the gradient, history cards get a fuchsia left stripe. Familiar but charged.</div>
+    <div class="mock-screen">
+      <div class="mock-input-row">
+        <div class="mock-input"><span class="placeholder-text">Tell Scout what you're in the mood for...</span></div>
+        <div class="mock-btn">→</div>
+      </div>
+      <div class="mock-section">Recent searches</div>
+      <div class="mock-hist-card"><div class="mock-hist-title">Funny action from 2024</div><div class="mock-hist-meta">2h ago</div></div>
+      <div class="mock-hist-card"><div class="mock-hist-title">Dark psychological thriller</div><div class="mock-hist-meta">yesterday</div></div>
+    </div>
+  </div>
+
+  <!-- B -->
+  <div class="dir-card dir-b option" data-choice="b" onclick="toggleSelect(this)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px 0">
+      <div class="dir-label" style="padding:0;color:#d946ef">B &nbsp;·&nbsp; Purple World</div>
+      <div class="letter" style="font-size:11px;opacity:0.4;color:#9f72cc">click to select</div>
+    </div>
+    <div class="dir-desc" style="color:#c4a8e0">The screen fully shifts into a deep violet/purple space. Background, cards, and text all live in the purple palette. Feels like stepping into a different mode entirely.</div>
+    <div class="mock-screen">
+      <div class="mock-input-row">
+        <div class="mock-input" style="color:rgba(232,213,255,0.35)"><span class="mock-sparkle">✦</span>Tell Scout what you're in the mood for...</div>
+        <div class="mock-btn">→</div>
+      </div>
+      <div class="mock-section">Recent searches</div>
+      <div class="mock-hist-card"><div class="mock-hist-title" style="color:#e8d5ff">Funny action from 2024</div><div class="mock-hist-meta">2h ago</div></div>
+      <div class="mock-hist-card"><div class="mock-hist-title" style="color:#e8d5ff">Dark psychological thriller</div><div class="mock-hist-meta">yesterday</div></div>
+    </div>
+  </div>
+
+  <!-- C -->
+  <div class="dir-card dir-c option" data-choice="c" onclick="toggleSelect(this)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px 0">
+      <div class="dir-label" style="padding:0">C &nbsp;·&nbsp; Gradient Header Portal</div>
+      <div class="letter" style="font-size:11px;opacity:0.5">click to select</div>
+    </div>
+    <div class="dir-desc">A rich violet→dark gradient header contains the input — like stepping through a portal. The rest of the screen stays dark/gold. The gradient fades out into the normal background below.</div>
+    <div class="mock-screen">
+      <div class="mock-header">
+        <div class="mock-header-title"><span class="sparkle">✦</span> What's the vibe?</div>
+        <div class="mock-input-row">
+          <div class="mock-input" style="color:rgba(255,255,255,0.35)">Tell Scout what you're in the mood for...</div>
+          <div class="mock-btn">→</div>
+        </div>
+      </div>
+      <div class="mock-body">
+        <div class="mock-section">Recent searches</div>
+        <div class="mock-hist-card"><div class="mock-hist-title">Funny action from 2024</div><div class="mock-hist-meta">2h ago</div></div>
+        <div class="mock-hist-card"><div class="mock-hist-title">Dark psychological thriller</div><div class="mock-hist-meta">yesterday</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
