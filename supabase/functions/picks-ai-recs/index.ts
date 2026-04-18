@@ -3,7 +3,18 @@ import { errorResponse, jsonResponse, requireUserId } from '../_shared/auth.ts'
 import { checkDailyLimit, logUsage } from '../_shared/rate-limit.ts'
 import { generateRecommendations, type Recommendation, type TasteProfile, type WatchedItem } from '../_shared/groq.ts'
 import { getTMDBDetails, getTMDBToken, normalizeTMDB, type TMDBMedia } from '../_shared/tmdb.ts'
-import { serviceClient } from '../_shared/supabase.ts'
+import { createClient } from 'npm:@supabase/supabase-js@^2.45.0'
+
+function serviceClient(): SupabaseClient {
+  const url = Deno.env.get('SUPABASE_URL')
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (!url) throw new Error('SUPABASE_URL is required')
+  if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY is required')
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    db: { schema: 'scout' },
+  }) as any
+}
 
 const REC_CACHE_TTL_HOURS = 2
 
@@ -21,9 +32,9 @@ export async function handler(req: Request): Promise<Response> {
     const cachedRecs = await getCachedRecs(supabase, userId)
     if (cachedRecs && cachedRecs.length >= 5) {
       const watched = await watchedSetFor(supabase, userId)
-      const filtered = cachedRecs.filter((r) => !watched.has(makeWatchedKey(r.tmdb_id, r.media_type)))
+      const filtered = cachedRecs.filter((r: any) => !watched.has(makeWatchedKey(r.tmdb_id, r.media_type)))
       if (filtered.length > 0) {
-        const enriched = await enrichRecs(supabase, filtered.map(r => ({ tmdbId: r.tmdb_id, mediaType: r.media_type })))
+        const enriched = await enrichRecs(supabase, filtered.map((r: any) => ({ tmdbId: r.tmdb_id, mediaType: r.media_type })))
         logUsageNoThrow(supabase, userId)
         return jsonResponse({ recommendations: enriched })
       }
@@ -54,14 +65,15 @@ export async function handler(req: Request): Promise<Response> {
     const enriched = await enrichRecs(supabase, newRecs)
     return jsonResponse({ recommendations: enriched })
   } catch (err) {
-    if (err instanceof Error && err.message.includes('Unauthorized')) {
-      return errorResponse(err.message, 401)
+    const message = err instanceof Error ? err.message : 'Internal server error'
+    if (message.includes('Missing Authorization') || message.includes('Invalid Authorization') || message.includes('Unauthorized')) {
+      return errorResponse(message, 401)
     }
-    if (err instanceof Error && err.message.includes('Daily ai_recs limit reached')) {
-      return errorResponse(err.message, 429)
+    if (message.includes('Daily ai_recs limit reached')) {
+      return errorResponse(message, 429)
     }
     console.error('picks-ai-recs error:', err)
-    return errorResponse(err instanceof Error ? err.message : 'Internal server error', 500)
+    return errorResponse(message, 500)
   }
 }
 
@@ -83,7 +95,7 @@ async function watchedSetFor(supabase: SupabaseClient, userId: string): Promise<
     .select('tmdb_id, media_type')
     .eq('user_id', userId)
   const set = new Set<string>()
-  data?.forEach((item) => {
+  data?.forEach((item: any) => {
     set.add(makeWatchedKey(item.tmdb_id, item.media_type))
   })
   return set
@@ -94,7 +106,7 @@ function makeWatchedKey(tmdbId: number, mediaType: string): string {
 }
 
 async function getTasteProfile(supabase: SupabaseClient, userId: string): Promise<TasteProfile | null> {
-  const { data } = await supabase
+  const { data } = await (supabase as any)
     .from('taste_profiles')
     .select('*')
     .eq('user_id', userId)
@@ -111,13 +123,13 @@ async function getTasteProfile(supabase: SupabaseClient, userId: string): Promis
 }
 
 async function getWatchHistory(supabase: SupabaseClient, userId: string, limit: number): Promise<WatchedItem[]> {
-  const { data } = await supabase
+  const { data } = await (supabase as any)
     .from('watch_history')
     .select('tmdb_id, media_type, overall_score, tags')
     .eq('user_id', userId)
     .order('watched_at', { ascending: false })
     .limit(limit)
-  return data?.map((item) => ({
+  return data?.map((item: any) => ({
     tmdbId: item.tmdb_id,
     mediaType: item.media_type as 'movie' | 'tv',
     overallScore: item.overall_score,
@@ -126,7 +138,7 @@ async function getWatchHistory(supabase: SupabaseClient, userId: string, limit: 
 }
 
 async function deleteOldPendingRecs(supabase: SupabaseClient, userId: string): Promise<void> {
-  await supabase
+  await (supabase as any)
     .from('recommendations')
     .delete()
     .eq('user_id', userId)
@@ -145,7 +157,7 @@ async function insertPendingRecs(
     media_type: rec.mediaType,
     status: 'pending',
   }))
-  await supabase.from('recommendations').insert(rows)
+  await (supabase as any).from('recommendations').insert(rows)
 }
 
 async function enrichRecs(supabase: SupabaseClient, recs: Recommendation[]): Promise<TMDBMedia[]> {
