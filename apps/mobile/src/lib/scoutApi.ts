@@ -94,6 +94,7 @@ export interface MoodSearchResponse {
   title: string
   results: MoodSearchResult[]
   createdAt: string
+  searchBroadened?: { reason: string }
 }
 
 export interface MoodSearchRefreshResponse {

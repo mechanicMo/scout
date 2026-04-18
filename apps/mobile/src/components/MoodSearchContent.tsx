@@ -276,6 +276,12 @@ export function MoodSearchContent() {
         </TouchableOpacity>
       </View>
 
+      {isCurrentSearch && searchMutation.data?.searchBroadened && (
+        <View style={styles.broadenedBanner}>
+          <Text style={styles.broadenedText}>{searchMutation.data.searchBroadened.reason}</Text>
+        </View>
+      )}
+
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.gold} />
@@ -428,6 +434,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   refreshText: { color: colors.textMuted, fontSize: 14 },
+  broadenedBanner: {
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(255,200,50,0.08)', borderBottomWidth: 1, borderBottomColor: 'rgba(255,200,50,0.15)',
+  },
+  broadenedText: { fontSize: 12, color: colors.gold, opacity: 0.8 },
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
   card: {

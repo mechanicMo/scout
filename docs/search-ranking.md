@@ -51,43 +51,70 @@ User query ("the bear")
 
 ## 3. Mood Search (`mood-search`, `mood-search-refresh`)
 
-**Intent:** User describes a vibe. Return titles that match it. Relevance matters more than popularity, but results should still be recognizable titles.
+**Intent:** User describes a vibe. Return titles that match it. The system extracts structured intent from the query to build a targeted candidate pool, then uses Groq to rank by mood fit within that pool.
 
 **Pipeline:**
 
 ```
 User mood query ("something cozy and nostalgic for a rainy night")
-    → [If query > 40 chars] Groq summarizes to a short title (e.g., "Cozy Nostalgic Rainy Night")
-    → TMDB Discover: fetch top 30 movies sorted by popularity.desc
-    → TMDB Discover: fetch top 30 TV shows sorted by popularity.desc
-    → Merge: 60 candidates total [movie_1 ... movie_30, tv_1 ... tv_30]
-    → Groq (llama-3.3-70b-versatile): rank and filter by mood relevance
-        - Input: mood string + up to 60 candidates (tmdbId, title, overview)
-        - Output: ordered list of tmdbIds, filtered to best matches only
+
+Stage 1: Groq extractMoodIntent() — low temperature (0.1), deterministic
+    - Extracts: genres[], yearMin/yearMax, mediaType ('movie'|'tv'|'both'), keywords[]
+    - e.g. { genres: ["Drama", "Family"], yearMin: 1985, yearMax: 2000,
+             mediaType: "both", keywords: ["cozy", "nostalgic"] }
+
+Stage 2: TMDB Discover with targeted params
+    - Genre IDs via OR logic (MOVIE_GENRE_IDS / TV_GENRE_IDS maps in _shared/tmdb.ts)
+    - Year range applied if present
+    - vote_count.gte=30 to filter noise
+    - Sorted by popularity.desc within the targeted set
+    - mediaType controls fetch: 'movie' → 60 movies only, 'tv' → 60 TV only,
+      'both' → 30 movies + 30 TV
+
+Stage 3: Server-side exclusion filter
+    - Edge function queries watch_history + dismissed watchlist items for the user
+    - Removes those IDs from candidates before ranking
+    - Saved (non-dismissed) watchlist items are NOT excluded — user wants to watch them
+
+Stage 4: Progressive fallback (if filtered results < 8)
+    - Level 1: drop year range, keep genres
+        → searchBroadened: "No exact matches for [era] — showing similar titles from any year"
+    - Level 2: drop genres too, keep year if present
+        → searchBroadened: "Couldn't find exact genre matches — showing popular titles from that era instead"
+    - Level 3: full fallback, no filters
+        → searchBroadened: "Couldn't find close matches — showing popular titles instead"
+    - Client receives searchBroadened: { reason: string } when any fallback fires
+    - Shown as a subtle gold banner below the results header
+
+Stage 5: Groq rankTitlesByMood() — ALWAYS runs (not conditional)
+    - Input: mood string + candidates (tmdbId, title, overview) + intent.keywords
+    - keywords give Groq tone context (e.g. "cozy", "nostalgic") within the pool
+    - Output: ordered list of tmdbIds, filtered to best matches only
+
     → Save: ranked IDs stored in mood_searches.result_tmdb_ids
-    → Cache: all 60 candidates upserted into media_cache (so history loads work)
+    → Cache: all candidates upserted into media_cache (so history loads work)
     → Return: full media objects in ranked order
 ```
 
-**Signals used:** This is a two-stage system — not a blend, by design:
+**Signals used:** This is a five-stage system. Each stage has a distinct role:
 
 | Stage | Signal | Purpose |
 |---|---|---|
-| Stage 1 (candidate selection) | TMDB popularity | Ensures pool contains recognizable titles only |
-| Stage 2 (Groq ranking) | LLM mood relevance | Final ordering is purely about mood fit |
+| Stage 1 (intent extraction) | Groq LLaMA, temp 0.1 | Parse genres, year range, mediaType, keywords from free-text query |
+| Stage 2 (candidate selection) | TMDB Discover + popularity | Fetch targeted, recognizable titles matching extracted intent |
+| Stage 3 (exclusion filter) | User watch_history + dismissed items | Remove already-seen or dismissed titles server-side |
+| Stage 4 (progressive fallback) | Result count threshold | Widen constraints gracefully if targeted pool is too small |
+| Stage 5 (Groq ranking) | LLM mood relevance + keywords | Final ordering purely by mood and tone fit |
 
-**Why not a weighted blend?** A blend would penalize niche-but-perfect matches. If you ask for "80s synth noir cyberpunk thriller" and the best matching film is less popular than The Dark Knight, the blend would rank The Dark Knight above it despite it not matching the mood at all. The current design ensures the pool is recognizable (popularity floor), then optimizes purely for mood fit within that pool.
+**Why targeted Discover instead of a generic popularity pool?** The old approach fetched the top 60 globally popular titles and asked Groq to filter them. This meant a query for "80s synth noir cyberpunk thriller" would get the same starting pool as a query for "feel-good family comedy" — the globally trending titles of the week. By extracting structured intent first and using TMDB Discover's filters, the candidate pool is directly relevant to the query before Groq ever sees it.
 
-**Popularity role in final output:** Zero direct weight. A title ranked #1 by Groq could be at position 55 in the candidate pool's popularity order. Groq doesn't see popularity scores — it only sees title and overview.
+**Why not a weighted blend at the ranking step?** A blend would penalize niche-but-perfect matches. If you ask for "slow-burn 70s paranoia thriller" and the best matching film is less popular than a generic blockbuster, a blend would rank the blockbuster above it despite it not matching the mood. Stage 5 uses pure mood fit within an already-targeted pool.
 
-**Groq prompt (paraphrased):**
-> "You rank titles by how well they match a mood description. Return { ranked: number[] } — array of tmdbIds in best-to-worst order. Include only titles that match the mood well."
+**Popularity role in final output:** Zero direct weight. A title ranked #1 by Groq could be at position 55 in the candidate pool's popularity order. Groq doesn't see popularity scores — it only sees title, overview, and the extracted keywords.
 
-**Known limitation — candidate pool size:** We fetch 30 movies + 30 TV = 60 candidates, drawn from the globally most popular titles at that moment. This means:
-- Very good mood-matched titles that aren't currently trending won't appear
-- The ↻ refresh button fetches a *different random page* (1-5) of popular titles to introduce variety
+**Genre ID mapping:** `_shared/tmdb.ts` contains `MOVIE_GENRE_IDS` and `TV_GENRE_IDS` reverse maps (genre name string → TMDB numeric ID). Cross-type aliases handle cases where the same genre label maps to different IDs by media type (e.g. "Action" → 28 for movies, 10759 for TV). `getGenreIds()` resolves a genre name against the correct map for the requested mediaType.
 
-**Refresh (`mood-search-refresh`):** Uses the same original query text but fetches a new random page of candidates, re-ranks, and stores the updated IDs. This is how you get different results without spending a new rate-limit credit... except it does actually log a usage event (the rate limit counts searches + refreshes combined at 3/day total).
+**Refresh (`mood-search-refresh`):** Re-extracts intent from the stored original query (same deterministic extractMoodIntent call), then fetches a random page 2-4 of the same targeted Discover query. This introduces variety by pulling a different slice of the genre/year-filtered pool rather than re-fetching the same page-1 results. Rate limit: searches + refreshes combined count toward the 3/day total.
 
 ---
 
@@ -136,8 +163,11 @@ TMDB /trending/all/week
 | Surface | Popularity Used | AI Used | Primary Signal |
 |---|---|---|---|
 | Title search | Re-sort by popularity | No | TMDB popularity |
-| Mood search (Stage 1) | Candidate selection | No | TMDB popularity (floor) |
-| Mood search (Stage 2) | Not used | Yes (Groq LLaMA) | LLM mood relevance |
+| Mood search (Stage 1) | No | Yes (Groq, temp 0.1) | Structured intent extraction |
+| Mood search (Stage 2) | Targeted candidate selection | No | TMDB Discover (genre + year filter) |
+| Mood search (Stage 3) | No | No | User exclusion filter (server-side) |
+| Mood search (Stage 4) | No | No | Progressive fallback on result count |
+| Mood search (Stage 5) | No | Yes (Groq LLaMA + keywords) | LLM mood relevance |
 | AI recs | Not used | Yes (Groq LLaMA) | Taste profile + history |
 | Trending picks | TMDB trending | No | TMDB weekly trending |
 
@@ -149,10 +179,13 @@ TMDB /trending/all/week
 In `_shared/groq.ts`, pass `popularity` as a field in each candidate object and update the system prompt to instruct Groq to blend mood relevance and popularity. This gives Groq the signal to use; whether it actually uses it well depends on the model.
 
 **Expand the mood search candidate pool:**
-Increase the page count in `mood-search/index.ts` from 30 per type to more, and update the slice limit in `groq.ts` accordingly. Trade-off: larger prompts = higher latency + cost.
+Increase the per-type fetch limit in `mood-search/index.ts` (currently 30 per type, 60 for single type). Trade-off: larger prompts = higher latency + cost.
 
 **Make title search relevance-first:**
 Remove the `.sort((a, b) => b.popularity - a.popularity)` line in `tmdb-search/index.ts` to trust TMDB's native relevance ordering.
 
 **Add vote_average as a quality signal:**
 TMDB also returns `vote_average` (0-10 critic/audience score). This could be used alongside popularity to surface "critically acclaimed but not trending" titles. Currently not used in any ranking.
+
+**Adjust the fallback threshold:**
+The progressive fallback triggers at < 8 results. To tolerate narrower pools before widening, lower this threshold in `mood-search/index.ts`.

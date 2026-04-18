@@ -1,31 +1,18 @@
 import { requireUserId, jsonResponse, errorResponse } from '../_shared/auth.ts'
 import { checkDailyLimit, logUsage, TooManyRequestsError } from '../_shared/rate-limit.ts'
-import { discoverTMDB, getTMDBToken } from '../_shared/tmdb.ts'
-import { rankTitlesByMood } from '../_shared/groq.ts'
-import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@^2.45.0'
-
-function serviceClient(): SupabaseClient {
-  const url = Deno.env.get('SUPABASE_URL')
-  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  if (!url) throw new Error('SUPABASE_URL is required')
-  if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY is required')
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    db: { schema: 'scout' },
-  }) as SupabaseClient
-}
+import { rankTitlesByMood, extractMoodIntent, type MoodIntent } from '../_shared/groq.ts'
+import { discoverTMDB, getTMDBToken, getGenreIds, type TMDBMedia } from '../_shared/tmdb.ts'
+import { serviceClient } from '../_shared/supabase.ts'
 
 export async function handler(req: Request): Promise<Response> {
   try {
-    // Require authentication
     let userId: string
     try {
       userId = await requireUserId(req)
-    } catch (err) {
+    } catch {
       return errorResponse('Unauthorized', 401)
     }
 
-    // Parse request body
     if (req.method !== 'POST') {
       return errorResponse('Method not allowed', 405)
     }
@@ -44,13 +31,18 @@ export async function handler(req: Request): Promise<Response> {
 
     const supabase = serviceClient()
 
-    // Check rate limit: 3/day for all users
-    await checkDailyLimit(supabase, userId, 'mood_search', 3, 3)
+    try {
+      await checkDailyLimit(supabase, userId, 'mood_search', 3, 3)
+    } catch (err) {
+      if (err instanceof TooManyRequestsError) {
+        return errorResponse(err.message, 429)
+      }
+      throw err
+    }
 
-    // Look up existing mood_search record by searchId and userId
     const { data: moodSearch, error: lookupError } = await supabase
       .from('mood_searches')
-      .select('id, user_id, query, title, result_tmdb_ids')
+      .select('id, user_id, query, title')
       .eq('id', searchId)
       .eq('user_id', userId)
       .single()
@@ -59,49 +51,78 @@ export async function handler(req: Request): Promise<Response> {
       return errorResponse('Search not found', 404)
     }
 
-    // Discover movies and TV from random page (1-5) for variety
-    const randomPage = Math.floor(Math.random() * 5) + 1
-    const [movies, tvShows] = await Promise.all([
-      discoverTMDB(getTMDBToken(), 'movie', { page: randomPage }),
-      discoverTMDB(getTMDBToken(), 'tv', { page: randomPage }),
-    ])
+    const tmdbToken = getTMDBToken()
 
-    const allMedia = [
-      ...movies.map((m) => ({ ...m, mediaType: 'movie' as const })),
-      ...tvShows.map((m) => ({ ...m, mediaType: 'tv' as const })),
-    ]
-    const mediaMap = new Map(allMedia.map((m) => [m.tmdbId, m]))
+    // Re-extract intent from the stored query so refresh uses the same targeted parameters
+    const intent = await extractMoodIntent(moodSearch.query)
 
-    const rankingCandidates = allMedia.map((m) => ({
-      tmdbId: m.tmdbId,
-      title: m.title,
-      overview: m.overview,
-    }))
+    // Fetch a different page of targeted results for variety
+    const randomPage = Math.floor(Math.random() * 3) + 2 // pages 2-4 to avoid repeating page 1
+    const types: ('movie' | 'tv')[] = intent.mediaType === 'both' ? ['movie', 'tv'] : [intent.mediaType]
+    const perType = intent.mediaType === 'both' ? 30 : 60
 
-    // Rank via rankTitlesByMood() using original query
-    const rankedIds = await rankTitlesByMood(moodSearch.query, rankingCandidates)
+    const hasYear = intent.yearMin !== null || intent.yearMax !== null
+    const hasGenres = intent.genres.length > 0
 
-    // Update mood_search record with new result_tmdb_ids and updated_at
+    const fetched = await Promise.all(
+      types.map(t => {
+        const params: Record<string, string | number> = {
+          sort_by: 'popularity.desc',
+          page: randomPage,
+          'vote_count.gte': 30,
+          per_page: perType,
+        }
+        if (hasGenres) {
+          const ids = getGenreIds(intent.genres, t)
+          if (ids.length > 0) params['with_genres'] = ids.join('|')
+        }
+        if (hasYear && intent.yearMin !== null) {
+          params[t === 'movie' ? 'primary_release_date.gte' : 'first_air_date.gte'] = `${intent.yearMin}-01-01`
+        }
+        if (hasYear && intent.yearMax !== null) {
+          params[t === 'movie' ? 'primary_release_date.lte' : 'first_air_date.lte'] = `${intent.yearMax}-12-31`
+        }
+        return discoverTMDB(tmdbToken, t, params).then(items => items.map(m => ({ ...m, mediaType: t })))
+      })
+    )
+    const candidates = fetched.flat()
+    const mediaMap = new Map(candidates.map(m => [m.tmdbId, m]))
+
+    const rankingInput = candidates.map(m => ({ tmdbId: m.tmdbId, title: m.title, overview: m.overview }))
+    const rankedIds = await rankTitlesByMood(moodSearch.query, rankingInput, intent.keywords)
+
     const refreshedAt = new Date().toISOString()
+
     const { error: updateError } = await supabase
       .from('mood_searches')
-      .update({
-        result_tmdb_ids: rankedIds,
-        updated_at: refreshedAt,
-      })
+      .update({ result_tmdb_ids: rankedIds, updated_at: refreshedAt })
       .eq('id', searchId)
 
-    if (updateError) {
-      throw new Error(`Failed to update search: ${updateError.message}`)
+    if (updateError) throw new Error(`Failed to update search: ${updateError.message}`)
+
+    // Cache refreshed candidates
+    const cacheRows = candidates.map(m => ({
+      tmdb_id: m.tmdbId,
+      media_type: m.mediaType,
+      title: m.title,
+      overview: m.overview,
+      poster_path: m.posterPath,
+      backdrop_path: m.backdropPath,
+      year: m.year,
+      genres: m.genres,
+      vote_average: m.voteAverage,
+      last_synced: refreshedAt,
+    }))
+    if (cacheRows.length > 0) {
+      await supabase.from('media_cache').upsert(cacheRows, { onConflict: 'tmdb_id,media_type' })
     }
 
-    // Log usage
     await logUsage(supabase, userId, 'mood_search')
 
     return jsonResponse({
       id: searchId,
       title: moodSearch.title,
-      results: rankedIds.map((id) => {
+      results: rankedIds.map(id => {
         const m = mediaMap.get(id)
         return {
           tmdbId: id,

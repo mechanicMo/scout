@@ -90,3 +90,28 @@ export function getTMDBToken(): string {
   if (!t) throw new Error('TMDB_READ_ACCESS_TOKEN is required')
   return t
 }
+
+// Genre name → TMDB ID, keyed by media type.
+// Movies and TV use different IDs for overlapping concepts (e.g. Action vs Action & Adventure).
+const MOVIE_GENRE_IDS: Record<string, number> = {
+  'Action': 28, 'Adventure': 12, 'Animation': 16, 'Comedy': 35, 'Crime': 80,
+  'Documentary': 99, 'Drama': 18, 'Family': 10751, 'Fantasy': 14, 'History': 36,
+  'Horror': 27, 'Music': 10402, 'Mystery': 9648, 'Romance': 10749,
+  'Science Fiction': 878, 'Sci-Fi': 878, 'Sci-Fi & Fantasy': 878,
+  'Thriller': 53, 'War': 10752, 'Western': 37,
+}
+
+const TV_GENRE_IDS: Record<string, number> = {
+  'Action': 10759, 'Action & Adventure': 10759, 'Adventure': 10759,
+  'Animation': 16, 'Comedy': 35, 'Crime': 80, 'Documentary': 99, 'Drama': 18,
+  'Family': 10751, 'Kids': 10762, 'Mystery': 9648, 'News': 10763,
+  'Reality': 10764, 'Romance': 10749, 'Sci-Fi & Fantasy': 10765,
+  'Science Fiction': 10765, 'Sci-Fi': 10765,
+  'Thriller': 80, 'War': 10768, 'War & Politics': 10768, 'Western': 37,
+}
+
+/** Maps genre names (as Groq might return them) to TMDB genre IDs for a given media type. */
+export function getGenreIds(genres: string[], mediaType: 'movie' | 'tv'): number[] {
+  const map = mediaType === 'movie' ? MOVIE_GENRE_IDS : TV_GENRE_IDS
+  return [...new Set(genres.map(g => map[g]).filter((id): id is number => id !== undefined))]
+}

@@ -10,7 +10,7 @@ export function getGroqKey(): string {
   return k
 }
 
-async function complete(prompt: string, systemPrompt: string): Promise<string> {
+async function complete(prompt: string, systemPrompt: string, temperature = 0.7): Promise<string> {
   const res = await fetch(GROQ_URL, {
     method: 'POST',
     headers: {
@@ -19,7 +19,7 @@ async function complete(prompt: string, systemPrompt: string): Promise<string> {
     },
     body: JSON.stringify({
       model: MODEL,
-      temperature: 0.7,
+      temperature,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: prompt },
@@ -69,11 +69,47 @@ export async function generateSurveyQuestion(
   return JSON.parse(raw)
 }
 
+export type MoodIntent = {
+  genres: string[]           // TMDB genre names (e.g. "Science Fiction", "Drama")
+  yearMin: number | null     // e.g. 1980 for "80s films"
+  yearMax: number | null     // e.g. 1989 for "80s films"
+  mediaType: 'movie' | 'tv' | 'both'
+  keywords: string[]         // tone/theme descriptors TMDB can't express (e.g. "cozy", "dark humor")
+}
+
+/**
+ * Extracts structured TMDB query parameters from a freeform mood/vibe description.
+ * Uses low temperature for consistent, deterministic output.
+ */
+export async function extractMoodIntent(mood: string): Promise<MoodIntent> {
+  const sys = `Extract structured search parameters from a mood/vibe description. Return JSON:
+{
+  "genres": string[],      // genre names from this list only: Action, Adventure, Animation, Comedy, Crime, Documentary, Drama, Family, Fantasy, History, Horror, Music, Mystery, Romance, Science Fiction, Thriller, War, Western
+  "yearMin": number|null,  // earliest year if a decade or era is mentioned, else null
+  "yearMax": number|null,  // latest year if a decade or era is mentioned, else null
+  "mediaType": "movie"|"tv"|"both",  // infer from words like "show", "series", "binge" (tv), "film", "movie" (movie), or "both" if unclear
+  "keywords": string[]     // 1-3 tone/mood descriptors not captured by genre, e.g. "cozy", "nostalgic", "slow-burn"
+}`
+  const user = `Mood: ${mood}`
+  const raw = await complete(user, sys, 0.1)
+  const parsed = JSON.parse(raw)
+  return {
+    genres: Array.isArray(parsed.genres) ? parsed.genres : [],
+    yearMin: typeof parsed.yearMin === 'number' ? parsed.yearMin : null,
+    yearMax: typeof parsed.yearMax === 'number' ? parsed.yearMax : null,
+    mediaType: ['movie', 'tv', 'both'].includes(parsed.mediaType) ? parsed.mediaType : 'both',
+    keywords: Array.isArray(parsed.keywords) ? parsed.keywords : [],
+  }
+}
+
 export async function rankTitlesByMood(
-  mood: string, candidates: Array<{ tmdbId: number; title: string; overview: string }>,
+  mood: string,
+  candidates: Array<{ tmdbId: number; title: string; overview: string }>,
+  keywords: string[] = [],
 ): Promise<number[]> {
-  const sys = 'You rank titles by how well they match a mood description. Return JSON { "ranked": number[] } — array of tmdbIds in best-to-worst order. Include only titles that match the mood well.'
-  const user = `Mood: ${mood}\nCandidates: ${JSON.stringify(candidates.slice(0, 60))}\nRank and filter to best matches.`
+  const keywordCtx = keywords.length > 0 ? `\nTone to prioritize: ${keywords.join(', ')}` : ''
+  const sys = 'You rank titles by how well they match a mood description. Return JSON { "ranked": number[] } — array of tmdbIds in best-to-worst order. Include only titles that genuinely match the mood.'
+  const user = `Mood: ${mood}${keywordCtx}\nCandidates: ${JSON.stringify(candidates.slice(0, 60))}\nRank and filter to best matches only.`
   const raw = await complete(user, sys)
   const parsed = JSON.parse(raw)
   return parsed.ranked ?? []
