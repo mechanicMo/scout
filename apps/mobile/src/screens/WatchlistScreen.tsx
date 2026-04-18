@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   View, Text, FlatList, Image, TouchableOpacity,
   ActivityIndicator, StyleSheet, ScrollView, Modal,
@@ -6,8 +7,9 @@ import {
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import {
-  useWatchlist, useRemoveFromWatchlist, useUpdateWatchlistStatus,
+  useWatchlist, useRemoveFromWatchlist, useUpdateWatchlistStatus, useUpdateWatchingStatus,
 } from '../hooks/useWatchlist'
+import { queryKeys } from '../queries/keys'
 import { useWatchHistory, useAddToHistory } from '../hooks/useWatchHistory'
 import { useUpdateFromRating } from '../hooks/useTasteProfile'
 import { useGenerateTags } from '../hooks/useMediaDetail'
@@ -58,6 +60,7 @@ export function WatchlistScreen() {
     id: string; mediaType: 'movie' | 'tv'; title: string; totalSeasons: number | null
   } | null>(null)
 
+  const queryClient = useQueryClient()
   const listQuery = useWatchlist()
   const historyQuery = useWatchHistory()
   const removeMutation = useRemoveFromWatchlist()
@@ -159,8 +162,8 @@ export function WatchlistScreen() {
     setEpisodeUpdateTarget(item.id)
 
     // Optimistic update — immediately reflect new episode so button can't double-fire
-    const snapshot = utils.watchlist.list.getData({})
-    utils.watchlist.list.setData({}, (old: any) =>
+    const snapshot = queryClient.getQueryData(queryKeys.watchlist.all())
+    queryClient.setQueryData(queryKeys.watchlist.all(), (old: any) =>
       old?.map((w: any) => w.id === item.id
         ? { ...w, currentSeason: nextSeason, currentEpisode: nextEpisode }
         : w
@@ -169,7 +172,7 @@ export function WatchlistScreen() {
 
     updateWatchingMutation.mutate(
       { id: item.id, watchingStatus: 'watching', currentSeason: nextSeason, currentEpisode: nextEpisode },
-      { onError: () => utils.watchlist.list.setData({}, snapshot) }
+      { onError: () => queryClient.setQueryData(queryKeys.watchlist.all(), snapshot) }
     )
   }
 

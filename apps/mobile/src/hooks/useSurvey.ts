@@ -117,3 +117,56 @@ export function useSkipQuestion() {
     },
   })
 }
+
+export const useNextSurvey = useSurveyQuestion
+
+export function useSubmitSurvey() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, question, answer }: { id: string; question: string; answer: string | string[] }) => {
+      const answerText = Array.isArray(answer) ? answer.join(',') : answer
+      const { data, error } = await supabase
+        .from('survey_answers')
+        .insert({ question, answer: answerText })
+        .select()
+        .single()
+      if (error) throw new Error(`Failed to submit survey answer: ${error.message}`)
+      await queryClient.invalidateQueries({ queryKey: queryKeys.survey.next() })
+      return data
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.survey.next() })
+      const prev = queryClient.getQueryData(queryKeys.survey.next())
+      queryClient.setQueryData(queryKeys.survey.next(), undefined)
+      return { prev }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(queryKeys.survey.next(), ctx.prev)
+    },
+  })
+}
+
+export function useSkipSurvey() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id }: { id: string }) => {
+      const { data, error } = await supabase
+        .from('survey_answers')
+        .insert({ question: `skip:${id}`, answer: 'SKIPPED' })
+        .select()
+        .single()
+      if (error) throw new Error(`Failed to skip question: ${error.message}`)
+      await queryClient.invalidateQueries({ queryKey: queryKeys.survey.next() })
+      return data
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.survey.next() })
+      const prev = queryClient.getQueryData(queryKeys.survey.next())
+      queryClient.setQueryData(queryKeys.survey.next(), undefined)
+      return { prev }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(queryKeys.survey.next(), ctx.prev)
+    },
+  })
+}

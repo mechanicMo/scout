@@ -83,3 +83,14 @@ export function useRefreshPicks() {
     },
   })
 }
+
+export const useAiRecs = useAiRecommendations
+
+export function useTrending(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.picks.trending(),
+    queryFn: async () => picksTrending(),
+    staleTime: 10 * 60 * 1000,
+    enabled,
+  })
+}

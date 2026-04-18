@@ -138,3 +138,34 @@ export function useRemoveFromHistory() {
     },
   })
 }
+
+export function useAddToHistory() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      item,
+      score,
+      tags = [],
+    }: {
+      item: { tmdbId: number; mediaType: MediaType; [key: string]: any }
+      score?: number | null
+      tags?: string[]
+    }) => {
+      const { data, error } = await supabase
+        .from('watch_history')
+        .insert({
+          tmdb_id: item.tmdbId,
+          media_type: item.mediaType,
+          overall_score: score ?? null,
+          tags,
+        })
+        .select()
+        .single()
+      if (error) throw new Error(`Failed to add to history: ${error.message}`)
+      return data as WatchHistoryItem
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.watchHistory.list() })
+    },
+  })
+}

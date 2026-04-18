@@ -156,14 +156,17 @@ export function useUpdateWatchlistStatus() {
       id,
       status,
       watchingStatus,
+      resurfaceAfter,
     }: {
       id: string
       status?: 'saved' | 'dismissed_not_now' | 'dismissed_never'
       watchingStatus?: 'not_started' | 'watching' | 'completed' | 'dropped'
+      resurfaceAfter?: string
     }) => {
       const updateData: any = {}
       if (status) updateData.status = status
       if (watchingStatus) updateData.watching_status = watchingStatus
+      if (resurfaceAfter) updateData.resurface_after = resurfaceAfter
 
       const { data, error } = await supabase
         .from('watchlist')
@@ -200,6 +203,38 @@ export function useUpdateWatchlistStatus() {
       if (context?.previousData) {
         queryClient.setQueryData(queryKeys.watchlist.all(), context.previousData)
       }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.watchlist.all() })
+    },
+  })
+}
+
+export function useUpdateWatchingStatus() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      id,
+      watchingStatus,
+      currentSeason,
+      currentEpisode,
+    }: {
+      id: string
+      watchingStatus: 'not_started' | 'watching' | 'completed' | 'dropped'
+      currentSeason?: number
+      currentEpisode?: number
+    }) => {
+      const updateData: any = { watching_status: watchingStatus }
+      if (currentSeason !== undefined) updateData.current_season = currentSeason
+      if (currentEpisode !== undefined) updateData.current_episode = currentEpisode
+      const { data, error } = await supabase
+        .from('watchlist')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw new Error(`Failed to update watching status: ${error.message}`)
+      return data as WatchlistItem
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.watchlist.all() })

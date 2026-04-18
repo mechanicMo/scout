@@ -26,6 +26,9 @@
         "projectId": "c67eef98-55e5-4eb6-ad39-84fb40a146cb"
       }
     },
-    "owner": "moxpo"
+    "owner": "moxpo",
+    "plugins": [
+      "expo-secure-store"
+    ]
   }
 }

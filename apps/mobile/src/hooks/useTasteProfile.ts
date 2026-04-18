@@ -110,3 +110,44 @@ export function useUpdateTasteProfile() {
     },
   })
 }
+
+export function useUpdateFromRating() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ score, genres }: { score: number; genres: string[] }) => {
+      if (genres.length === 0 || (score > 3 && score < 7)) return null
+      const field = score >= 7 ? 'liked_genres' : 'disliked_genres'
+      const { data: profile } = await supabase.from('taste_profiles').select(field).single()
+      const existing: string[] = (profile as any)?.[field] ?? []
+      const merged = Array.from(new Set([...existing, ...genres]))
+      const { data, error } = await supabase
+        .from('taste_profiles')
+        .update({ [field]: merged, last_updated: new Date().toISOString() })
+        .select()
+        .single()
+      if (error) throw new Error(`Failed to update taste from rating: ${error.message}`)
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasteProfile.get() })
+    },
+  })
+}
+
+export function useUpdateServices() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ services }: { services: string[] }) => {
+      const { data, error } = await supabase
+        .from('taste_profiles')
+        .update({ services, last_updated: new Date().toISOString() })
+        .select()
+        .single()
+      if (error) throw new Error(`Failed to update services: ${error.message}`)
+      return data as TasteProfile
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasteProfile.get() })
+    },
+  })
+}

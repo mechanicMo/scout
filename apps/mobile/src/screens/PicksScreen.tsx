@@ -197,7 +197,7 @@ export function PicksScreen() {
     try {
       await Promise.allSettled([
         aiRecsQuery.refetch(),
-        utils.watchlist.list.refetch(),
+        watchlistQuery.refetch(),
       ])
     } finally {
       setRefreshing(false)
