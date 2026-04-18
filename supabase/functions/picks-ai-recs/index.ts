@@ -67,7 +67,7 @@ export async function handler(req: Request): Promise<Response> {
 
 async function getCachedRecs(supabase: SupabaseClient, userId: string) {
   const cutoff = new Date(Date.now() - REC_CACHE_TTL_HOURS * 60 * 60 * 1000).toISOString()
-  const { data } = await supabase
+  const { data } = await (supabase as any)
     .from('recommendations')
     .select('tmdb_id, media_type')
     .eq('user_id', userId)
@@ -78,7 +78,7 @@ async function getCachedRecs(supabase: SupabaseClient, userId: string) {
 }
 
 async function watchedSetFor(supabase: SupabaseClient, userId: string): Promise<Set<string>> {
-  const { data } = await supabase
+  const { data } = await (supabase as any)
     .from('watch_history')
     .select('tmdb_id, media_type')
     .eq('user_id', userId)
