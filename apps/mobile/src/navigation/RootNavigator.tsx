@@ -9,7 +9,6 @@ import { LoginScreen } from '../screens/LoginScreen'
 import { SignUpScreen } from '../screens/SignUpScreen'
 import { useAuthStore } from '../store/authStore'
 import { supabase } from '../lib/supabase'
-import { trpc, createTRPCClient } from '../lib/trpc'
 import colors from '../theme/colors'
 
 const queryClient = new QueryClient({
@@ -31,7 +30,6 @@ const queryClient = new QueryClient({
     },
   }),
 })
-const trpcClient = createTRPCClient()
 
 const scoutNavTheme = {
   ...DarkTheme,
@@ -101,13 +99,11 @@ function AppContent() {
 
 export function RootNavigator() {
   return (
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <PersistQueryClientProvider
-        client={queryClient}
-        persistOptions={{ persister: asyncStoragePersister }}
-      >
-        <AppContent />
-      </PersistQueryClientProvider>
-    </trpc.Provider>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ persister: asyncStoragePersister }}
+    >
+      <AppContent />
+    </PersistQueryClientProvider>
   )
 }
