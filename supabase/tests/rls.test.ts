@@ -5,12 +5,9 @@ import {
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ||
-  "http://127.0.0.1:54321";
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsYjFldmt1cXN4eXpodHBudGxyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTYwMjAxODcwMCwiZXhwIjoyMDAwMDE4NzAwfQ.WwOGLFHZVh0fYrShDQpOjGhjdBfJLbwWLkJ0F3jNBXY";
-const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsYjFldmt1cXN4eXpodHBudGxyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2MDIwMTg3MDAsImV4cCI6MjAwMDAxODcwMH0.4VJ9AaLURfBxkYUqQb7bwvWXjqYA8bQBd9sBxvKA9hI";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 
 // Admin client for user creation/deletion and cleanup
 const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
