@@ -66,21 +66,28 @@ export async function handler(req: Request): Promise<Response> {
       discoverTMDB(getTMDBToken(), 'tv', { page: randomPage }),
     ])
 
-    const candidates = [...movies, ...tvShows].map((m) => ({
+    const allMedia = [
+      ...movies.map((m) => ({ ...m, mediaType: 'movie' as const })),
+      ...tvShows.map((m) => ({ ...m, mediaType: 'tv' as const })),
+    ]
+    const mediaMap = new Map(allMedia.map((m) => [m.tmdbId, m]))
+
+    const rankingCandidates = allMedia.map((m) => ({
       tmdbId: m.tmdbId,
       title: m.title,
       overview: m.overview,
     }))
 
     // Rank via rankTitlesByMood() using original query
-    const rankedIds = await rankTitlesByMood(moodSearch.query, candidates)
+    const rankedIds = await rankTitlesByMood(moodSearch.query, rankingCandidates)
 
     // Update mood_search record with new result_tmdb_ids and updated_at
+    const refreshedAt = new Date().toISOString()
     const { error: updateError } = await supabase
       .from('mood_searches')
       .update({
         result_tmdb_ids: rankedIds,
-        updated_at: new Date().toISOString(),
+        updated_at: refreshedAt,
       })
       .eq('id', searchId)
 
@@ -91,10 +98,23 @@ export async function handler(req: Request): Promise<Response> {
     // Log usage
     await logUsage(supabase, userId, 'mood_search')
 
-    // Return { searchId, results }
     return jsonResponse({
-      searchId,
-      results: rankedIds,
+      id: searchId,
+      title: moodSearch.title,
+      results: rankedIds.map((id) => {
+        const m = mediaMap.get(id)
+        return {
+          tmdbId: id,
+          mediaType: m?.mediaType ?? 'movie',
+          title: m?.title ?? '',
+          overview: m?.overview ?? '',
+          posterPath: m?.posterPath ?? null,
+          backdropPath: m?.backdropPath ?? null,
+          year: m?.year ?? null,
+          genres: m?.genres ?? [],
+        }
+      }),
+      refreshedAt,
     })
   } catch (err) {
     if (err instanceof TooManyRequestsError) {

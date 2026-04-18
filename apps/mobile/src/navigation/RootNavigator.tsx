@@ -65,7 +65,7 @@ const asyncStoragePersister = {
   },
 }
 
-// Inner component — lives inside trpc.Provider so can use tRPC hooks
+// Inner component — can use React Query hooks
 function AppContent() {
   const { session, setSession } = useAuthStore()
   const [authScreen, setAuthScreen] = useState<'login' | 'signup'>('login')

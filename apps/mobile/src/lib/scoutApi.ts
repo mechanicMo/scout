@@ -43,10 +43,9 @@ export interface SurveyQuestion {
   multiSelect?: boolean
 }
 
-export interface SurveyNextResponse {
-  question: SurveyQuestion
-  questionId: string
-}
+export type SurveyNextResponse =
+  | { id: string; question: string; options: string[]; multi_select: boolean }
+  | { question: null }
 
 export interface MediaDetails {
   tmdbId: number
@@ -73,9 +72,7 @@ export interface MediaDetails {
   cachedAt: string | null
 }
 
-export interface TmdbGetMediaResponse {
-  data: MediaDetails
-}
+export type TmdbGetMediaResponse = MediaDetails
 
 export interface TmdbGenerateTagsResponse {
   tags: string[]
@@ -83,8 +80,13 @@ export interface TmdbGenerateTagsResponse {
 
 export interface MoodSearchResult {
   tmdbId: number
+  mediaType: 'movie' | 'tv'
   title: string
   overview: string
+  posterPath: string | null
+  backdropPath: string | null
+  year: number | null
+  genres: string[]
 }
 
 export interface MoodSearchResponse {
@@ -165,11 +167,10 @@ export async function tmdbGetMedia(
   tmdbId: number,
   mediaType: MediaType,
 ): Promise<MediaDetails> {
-  const response = await invokeEdgeFunction<TmdbGetMediaResponse>(
+  return await invokeEdgeFunction<TmdbGetMediaResponse>(
     'tmdb-get-media',
     { tmdbId, mediaType },
   )
-  return response.data
 }
 
 /**

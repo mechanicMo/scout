@@ -37,9 +37,9 @@ async function ensureSeeds(supabase: any, userId: string): Promise<void> {
     .order('queue_order', { ascending: false })
     .limit(1)
 
-  let nextQueueOrder = 0n
+  let nextQueueOrder = 0
   if (maxRow && maxRow.length > 0) {
-    nextQueueOrder = BigInt((maxRow[0] as any).queue_order) + 1n
+    nextQueueOrder = Number((maxRow[0] as any).queue_order) + 1
   }
 
   // Get user's existing answers from preferences table
@@ -79,7 +79,7 @@ async function ensureSeeds(supabase: any, userId: string): Promise<void> {
         queue_order: nextQueueOrder,
         consumed_at: consumedAt,
       })
-      nextQueueOrder += 1n
+      nextQueueOrder += 1
     }
   }
 
@@ -141,7 +141,7 @@ async function generateAndInsertAiQuestion(
     .order('queue_order', { ascending: false })
     .limit(1)
 
-  const queueOrder = (maxRow?.length ?? 0) > 0 ? BigInt((maxRow![0] as any).queue_order) + 1n : 0n
+  const queueOrder = (maxRow?.length ?? 0) > 0 ? Number((maxRow![0] as any).queue_order) + 1 : 0
 
   // Insert the generated question
   const { data: inserted } = await supabase

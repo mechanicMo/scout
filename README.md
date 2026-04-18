@@ -14,34 +14,28 @@ pnpm install
 ```
 
 ### Environment
-Copy `.env.example` to `.env` and fill in the values (Supabase URL/keys, TMDB token).
 
-For the mobile app, set `apps/mobile/.env`:
+The mobile app connects directly to Supabase — no local API server needed. Create `apps/mobile/.env`:
 ```
-EXPO_PUBLIC_SUPABASE_URL=...
-EXPO_PUBLIC_SUPABASE_ANON_KEY=...
-EXPO_PUBLIC_API_URL=http://<your-local-ip>:3000
+EXPO_PUBLIC_SUPABASE_URL=https://efklpylddmczsiwgqpgn.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon key from Supabase dashboard>
 ```
 
-> Use your machine's local IP (not `localhost`) so your phone can reach the API over WiFi.
+These are also baked into standalone APK builds via `apps/mobile/eas.json`.
 
 ---
 
 ## Running Locally
 
-Two terminals, both from the repo root:
+One terminal from the repo root:
 
-**Terminal 1 — API server:**
-```bash
-pnpm --filter @scout/api dev
-```
-Runs on `http://localhost:3000`.
-
-**Terminal 2 — Mobile dev server:**
 ```bash
 pnpm --filter @scout/mobile start
 ```
-Scan the QR code with Expo Go.
+
+Scan the QR code with Expo Go. The app talks directly to Supabase (DB queries) and Supabase Edge Functions (AI recs, search, survey). No local API server to run.
+
+> **Edge Functions** live in `supabase/functions/`. To iterate on them locally, use `supabase functions serve` (requires Docker). For most changes, deploy directly: `supabase functions deploy <name>`.
 
 ---
 
@@ -54,7 +48,7 @@ pnpm test
 
 ## Building a Standalone APK (Android)
 
-The `preview` EAS profile builds a fully standalone APK — no dev server, no local API, installs on any Android phone on any network. `eas.json` bakes in `EXPO_PUBLIC_API_URL=https://scout-api.mohitr35.workers.dev` at build time.
+The `preview` EAS profile builds a fully standalone APK — no dev server needed, installs on any Android phone on any network. `eas.json` bakes in the Supabase URL and anon key at build time.
 
 ### Option A — Local build (recommended, no quota, no queue)
 
@@ -84,15 +78,15 @@ EAS builds in the cloud (~5-10 min). When it finishes you get a download link �
 
 ## Deployment
 
-| Service | URL | Notes |
+| Service | Where | Notes |
 |---|---|---|
-| API | `https://scout-api.mohitr35.workers.dev` | Cloudflare Workers — deploy with `cd packages/api && npx wrangler deploy` |
-| Supabase | `efklpylddmczsiwgqpgn` | Shared "non-monetized" project, `scout` schema |
+| Edge Functions | Supabase — `efklpylddmczsiwgqpgn` | Deploy with `supabase functions deploy <name>` from repo root |
+| Database | Supabase — `scout` schema | Migrations in `supabase/migrations/` — apply with `supabase db push` |
 
 ---
 
 ## Before Launch Checklist
 
 - [ ] **Email confirmation** — Supabase's built-in mailer is unreliable (rate-limited, lands in spam). Configure a transactional email provider (e.g. Resend) in Supabase dashboard → Settings → Auth → SMTP before going public. For dev: manually confirm test accounts via dashboard → Authentication → Users.
-- [x] **API deployment** — Deployed to Cloudflare Workers at `https://scout-api.mohitr35.workers.dev`.
+- [x] **Edge Functions** — All functions deployed to Supabase (`picks-trending`, `picks-ai-recs`, `survey-next`, `tmdb-get-media`, `tmdb-generate-tags`, `tmdb-search`, `mood-search`, `mood-search-refresh`).
 - [ ] **App Store / Play Store** — Use `eas build` production profile for App Store / Play Store submission. The `preview` profile (APK) is for internal testing only.

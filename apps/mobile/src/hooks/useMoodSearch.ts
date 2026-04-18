@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { moodSearch, moodSearchRefresh } from '../lib/scoutApi'
-import type { MoodSearchResponse, MoodSearchRefreshResponse } from '../lib/scoutApi'
+import type { MoodSearchResponse, MoodSearchRefreshResponse, MoodSearchResult } from '../lib/scoutApi'
 import { supabase } from '../lib/supabase'
 import { queryKeys } from '../queries/keys'
 
@@ -53,8 +53,8 @@ export function useMoodSearch() {
       }
     },
     onSuccess: () => {
-      // Invalidate history to sync with server
       queryClient.invalidateQueries({ queryKey: queryKeys.moodSearch.history() })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.moodSearch.all(), 'usage'] })
     },
   })
 }
@@ -89,6 +89,66 @@ export function useMoodSearchRefresh() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.moodSearch.results() })
     },
+  })
+}
+
+/**
+ * Query for today's mood search usage count for the current user.
+ * Used to show remaining searches in the footer (limit: 3/day).
+ */
+export function useMoodSearchUsage() {
+  return useQuery({
+    queryKey: [...queryKeys.moodSearch.all(), 'usage'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return { used: 0, limit: 3 }
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const { count } = await supabase
+        .from('usage_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('action', 'mood_search')
+        .gte('created_at', today.toISOString())
+      return { used: count ?? 0, limit: 3 }
+    },
+    staleTime: 60 * 1000,
+  })
+}
+
+/**
+ * Fetches full media data for a list of TMDB IDs from media_cache.
+ * Used to display results for history items without burning rate-limit credits.
+ */
+export function useMoodSearchResults(tmdbIds: number[]) {
+  return useQuery({
+    queryKey: [...queryKeys.moodSearch.all(), 'results', tmdbIds],
+    queryFn: async () => {
+      if (tmdbIds.length === 0) return []
+      const { data } = await supabase
+        .from('media_cache')
+        .select('tmdb_id, media_type, title, poster_path, backdrop_path, year, genres, overview')
+        .in('tmdb_id', tmdbIds)
+      const cacheMap = new Map((data ?? []).map((r: any) => [r.tmdb_id, r]))
+      return tmdbIds
+        .map(id => {
+          const r = cacheMap.get(id)
+          if (!r) return null
+          return {
+            tmdbId: r.tmdb_id,
+            mediaType: r.media_type,
+            title: r.title ?? '',
+            overview: r.overview ?? '',
+            posterPath: r.poster_path ?? null,
+            backdropPath: r.backdrop_path ?? null,
+            year: r.year ?? null,
+            genres: r.genres ?? [],
+          } as MoodSearchResult
+        })
+        .filter((r): r is MoodSearchResult => r !== null)
+    },
+    enabled: tmdbIds.length > 0,
+    staleTime: 5 * 60 * 1000,
   })
 }
 

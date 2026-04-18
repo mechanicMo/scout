@@ -65,24 +65,33 @@ export async function handler(req: Request): Promise<Response> {
       }),
     ])
 
-    const candidates = [...movies, ...tvShows].map(m => ({
+    // Build full media map (preserves mediaType and all display fields)
+    const allMedia = [
+      ...movies.map(m => ({ ...m, mediaType: 'movie' as const })),
+      ...tvShows.map(m => ({ ...m, mediaType: 'tv' as const })),
+    ]
+    const mediaMap = new Map(allMedia.map(m => [m.tmdbId, m]))
+
+    // Groq ranking only needs tmdbId, title, overview
+    const rankingCandidates = allMedia.map(m => ({
       tmdbId: m.tmdbId,
       title: m.title,
       overview: m.overview,
     }))
 
     // Rank by mood
-    const rankedIds = await rankTitlesByMood(query, candidates)
+    const rankedIds = await rankTitlesByMood(query, rankingCandidates)
 
     // Save search record
     const { data: searchRecord, error: insertError } = await supabase
       .from('mood_searches')
       .insert({
         user_id: userId,
+        query,
         title,
         result_tmdb_ids: rankedIds,
       })
-      .select('id')
+      .select('id, created_at')
       .single()
 
     if (insertError) {
@@ -103,16 +112,46 @@ export async function handler(req: Request): Promise<Response> {
       await supabase.from('mood_searches').delete().in('id', toDelete)
     }
 
+    // Cache all ranked media so history lookups work without re-fetching
+    const cacheRows = rankedIds
+      .map(id => mediaMap.get(id))
+      .filter(Boolean)
+      .map(m => ({
+        tmdb_id: m!.tmdbId,
+        media_type: m!.mediaType,
+        title: m!.title,
+        overview: m!.overview,
+        poster_path: m!.posterPath,
+        backdrop_path: m!.backdropPath,
+        year: m!.year,
+        genres: m!.genres,
+        vote_average: m!.voteAverage,
+        last_synced: new Date().toISOString(),
+      }))
+    if (cacheRows.length > 0) {
+      await supabase.from('media_cache').upsert(cacheRows, { onConflict: 'tmdb_id,media_type' })
+    }
+
     // Log usage
     await logUsage(supabase, userId, 'mood_search')
 
     return jsonResponse({
-      searchId,
+      id: searchId,
       title,
-      results: rankedIds.map(id => ({
-        tmdbId: id,
-        mediaType: candidates.find(c => c.tmdbId === id) ? 'movie' : 'tv',
-      })),
+      results: rankedIds.map(id => {
+        const m = mediaMap.get(id)
+        return {
+          tmdbId: id,
+          mediaType: m?.mediaType ?? 'movie',
+          title: m?.title ?? '',
+          overview: m?.overview ?? '',
+          posterPath: m?.posterPath ?? null,
+          backdropPath: m?.backdropPath ?? null,
+          year: m?.year ?? null,
+          genres: m?.genres ?? [],
+        }
+      }),
+      createdAt: searchRecord.created_at,
     })
   } catch (e) {
     console.error('mood-search error:', e)

@@ -1,21 +1,73 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { surveyNext } from '../lib/scoutApi'
-import type { SurveyQuestion, SurveyNextResponse } from '../lib/scoutApi'
 import { supabase } from '../lib/supabase'
 import { queryKeys } from '../queries/keys'
 
-/**
- * Query for fetching the next survey question.
- * Returns the next unanswered question or generates a new AI question.
- */
+const SEEDS = [
+  { question: 'What genres do you reach for when you want to relax?', options: ['Comedy & lighthearted', 'Drama & emotional', 'Sci-fi & fantasy', 'Thriller & suspense'], multiSelect: true },
+  { question: 'Do you prefer movies or TV shows?', options: ['Movies - prefer completing a story in one sitting', 'TV shows - love ongoing narratives', 'No preference', 'Depends on my mood'], multiSelect: false },
+  { question: 'How do you feel about foreign films and shows with subtitles?', options: ['Love them, bring the subtitles on', 'Prefer dubbed versions', 'Depends on the quality of the story', 'Rarely watch them'], multiSelect: false },
+  { question: 'What kind of pacing do you prefer?', options: ['Fast-paced action and excitement', 'Slow-burn with deep character development', 'Mixed, depends on the story', 'Fast at start then slower'], multiSelect: false },
+  { question: 'How much time are you willing to invest in a show before deciding to drop it?', options: ['One episode - hook me immediately', '2-3 episodes', 'First season', 'Depends on the premise and cast'], multiSelect: true },
+]
+
 export function useSurveyQuestion() {
   return useQuery({
     queryKey: queryKeys.survey.next(),
     queryFn: async () => {
-      const response = await surveyNext()
-      return response
+      // Try to get next unconsumed question directly from DB (bypasses edge function BigInt issues)
+      const { data: questions } = await supabase
+        .from('survey_question_state')
+        .select('id, question, options, multi_select')
+        .lt('skip_count', 2)
+        .is('consumed_at', null)
+        .order('queue_order', { ascending: true })
+        .limit(1)
+
+      if (questions && questions.length > 0) {
+        return questions[0] as { id: string; question: string; options: string[]; multi_select: boolean }
+      }
+
+      // No questions — seed for this user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return null
+
+      const { data: existing } = await supabase
+        .from('survey_question_state')
+        .select('question')
+        .eq('user_id', user.id)
+        .eq('source', 'seed')
+
+      const existingSet = new Set((existing ?? []).map((r: any) => r.question))
+      const baseOrder = existing?.length ?? 0
+
+      const toInsert = SEEDS
+        .filter(s => !existingSet.has(s.question))
+        .map((s, i) => ({
+          user_id: user.id,
+          question: s.question,
+          options: s.options,
+          multi_select: s.multiSelect,
+          source: 'seed',
+          skip_count: 0,
+          queue_order: baseOrder + i,
+        }))
+
+      if (toInsert.length > 0) {
+        await supabase.from('survey_question_state').insert(toInsert)
+      }
+
+      const { data: seeded } = await supabase
+        .from('survey_question_state')
+        .select('id, question, options, multi_select')
+        .eq('user_id', user.id)
+        .lt('skip_count', 2)
+        .is('consumed_at', null)
+        .order('queue_order', { ascending: true })
+        .limit(1)
+
+      return seeded?.[0] ?? null
     },
-    staleTime: 0, // Always fetch fresh to get truly next question
+    staleTime: 0,
   })
 }
 
@@ -123,25 +175,24 @@ export const useNextSurvey = useSurveyQuestion
 export function useSubmitSurvey() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, question, answer }: { id: string; question: string; answer: string | string[] }) => {
-      const answerText = Array.isArray(answer) ? answer.join(',') : answer
-      const { data, error } = await supabase
-        .from('survey_answers')
-        .insert({ question, answer: answerText })
-        .select()
-        .single()
-      if (error) throw new Error(`Failed to submit survey answer: ${error.message}`)
-      await queryClient.invalidateQueries({ queryKey: queryKeys.survey.next() })
-      return data
+    mutationFn: async ({ id, question: _question, answer: _answer }: { id: string; question: string; answer: string | string[] }) => {
+      const { error } = await supabase
+        .from('survey_question_state')
+        .update({ consumed_at: new Date().toISOString() })
+        .eq('id', id)
+      if (error) throw new Error(`Failed to consume survey question: ${error.message}`)
     },
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: queryKeys.survey.next() })
       const prev = queryClient.getQueryData(queryKeys.survey.next())
-      queryClient.setQueryData(queryKeys.survey.next(), undefined)
+      queryClient.setQueryData(queryKeys.survey.next(), null)
       return { prev }
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(queryKeys.survey.next(), ctx.prev)
+      queryClient.setQueryData(queryKeys.survey.next(), ctx?.prev ?? null)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.survey.next() })
     },
   })
 }
@@ -150,23 +201,30 @@ export function useSkipSurvey() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }: { id: string }) => {
-      const { data, error } = await supabase
-        .from('survey_answers')
-        .insert({ question: `skip:${id}`, answer: 'SKIPPED' })
-        .select()
+      const { data: row, error: fetchError } = await supabase
+        .from('survey_question_state')
+        .select('skip_count')
+        .eq('id', id)
         .single()
-      if (error) throw new Error(`Failed to skip question: ${error.message}`)
-      await queryClient.invalidateQueries({ queryKey: queryKeys.survey.next() })
-      return data
+      if (fetchError) throw new Error(`Failed to fetch question: ${fetchError.message}`)
+      const newCount = ((row as any)?.skip_count ?? 0) + 1
+      const { error } = await supabase
+        .from('survey_question_state')
+        .update({ skip_count: newCount })
+        .eq('id', id)
+      if (error) throw new Error(`Failed to skip survey question: ${error.message}`)
     },
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: queryKeys.survey.next() })
       const prev = queryClient.getQueryData(queryKeys.survey.next())
-      queryClient.setQueryData(queryKeys.survey.next(), undefined)
+      queryClient.setQueryData(queryKeys.survey.next(), null)
       return { prev }
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(queryKeys.survey.next(), ctx.prev)
+      queryClient.setQueryData(queryKeys.survey.next(), ctx?.prev ?? null)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.survey.next() })
     },
   })
 }

@@ -14,6 +14,13 @@ export interface WatchlistItem {
   currentEpisode: number | null
   addedAt: string
   resurfaceAfter: string | null
+  // From media_cache
+  title: string
+  genres: string[]
+  year: number | null
+  posterPath: string | null
+  backdropPath: string | null
+  overview: string
 }
 
 /**
@@ -31,9 +38,42 @@ export function useWatchlist(status?: string) {
         .order('added_at', { ascending: false })
 
       if (error) throw new Error(`Failed to fetch watchlist: ${error.message}`)
-      return data as WatchlistItem[]
+      if (!data || data.length === 0) return []
+
+      // Batch-fetch media details from cache for titles, genres, etc.
+      const tmdbIds = data.map((item: any) => item.tmdb_id)
+      const { data: cacheData } = await supabase
+        .from('media_cache')
+        .select('tmdb_id, media_type, title, genres, year, poster_path, backdrop_path, overview')
+        .in('tmdb_id', tmdbIds)
+
+      const cacheMap = new Map(
+        (cacheData ?? []).map((c: any) => [`${c.tmdb_id}-${c.media_type}`, c])
+      )
+
+      return data.map((item: any): WatchlistItem => {
+        const cache = cacheMap.get(`${item.tmdb_id}-${item.media_type}`)
+        return {
+          id: item.id,
+          userId: item.user_id,
+          tmdbId: item.tmdb_id,
+          mediaType: item.media_type,
+          status: item.status,
+          watchingStatus: item.watching_status,
+          currentSeason: item.current_season,
+          currentEpisode: item.current_episode,
+          addedAt: item.added_at,
+          resurfaceAfter: item.resurface_after,
+          title: cache?.title ?? 'Unknown',
+          genres: cache?.genres ?? [],
+          year: cache?.year ?? null,
+          posterPath: cache?.poster_path ?? null,
+          backdropPath: cache?.backdrop_path ?? null,
+          overview: cache?.overview ?? '',
+        }
+      })
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   })
 }
 
@@ -54,10 +94,14 @@ export function useAddToWatchlist() {
       mediaType: MediaType
       watchingStatus?: 'not_started' | 'watching' | 'completed' | 'dropped'
     }) => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
       const { data, error } = await supabase
         .from('watchlist')
         .upsert(
           {
+            user_id: user.id,
             tmdb_id: tmdbId,
             media_type: mediaType,
             status: 'saved',
@@ -81,7 +125,7 @@ export function useAddToWatchlist() {
       // Optimistically update the cache with a new item
       const optimisticItem: WatchlistItem = {
         id: `temp-${Date.now()}`,
-        userId: '', // Will be filled by server
+        userId: 'optimistic',
         tmdbId: variables.tmdbId,
         mediaType: variables.mediaType,
         status: 'saved',

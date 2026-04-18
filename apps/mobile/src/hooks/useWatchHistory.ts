@@ -27,7 +27,15 @@ export function useWatchHistory() {
         .order('watched_at', { ascending: false })
 
       if (error) throw new Error(`Failed to fetch watch history: ${error.message}`)
-      return data as WatchHistoryItem[]
+      return (data ?? []).map((row: any) => ({
+        id: row.id,
+        userId: row.user_id,
+        tmdbId: row.tmdb_id,
+        mediaType: row.media_type,
+        watchedAt: row.watched_at,
+        overallScore: row.overall_score,
+        tags: row.tags ?? [],
+      })) as WatchHistoryItem[]
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
@@ -52,10 +60,13 @@ export function useMarkWatched() {
       score?: number | null
       tags?: string[]
     }) => {
-      // Add to watch history
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
       const { data, error } = await supabase
         .from('watch_history')
         .insert({
+          user_id: user.id,
           tmdb_id: tmdbId,
           media_type: mediaType,
           overall_score: score || null,
@@ -66,7 +77,6 @@ export function useMarkWatched() {
 
       if (error) throw new Error(`Failed to mark as watched: ${error.message}`)
 
-      // Auto-log usage
       await supabase.from('usage_logs').insert({
         action: `watched:${mediaType}:${tmdbId}`,
       })
@@ -80,7 +90,7 @@ export function useMarkWatched() {
 
       const optimisticItem: WatchHistoryItem = {
         id: `temp-${Date.now()}`,
-        userId: '', // Will be filled by server
+        userId: 'optimistic',
         tmdbId: variables.tmdbId,
         mediaType: variables.mediaType,
         watchedAt: new Date().toISOString(),
@@ -151,9 +161,12 @@ export function useAddToHistory() {
       score?: number | null
       tags?: string[]
     }) => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
       const { data, error } = await supabase
         .from('watch_history')
         .insert({
+          user_id: user.id,
           tmdb_id: item.tmdbId,
           media_type: item.mediaType,
           overall_score: score ?? null,

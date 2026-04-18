@@ -23,7 +23,9 @@ export async function handler(req: Request): Promise<Response> {
         overview: r.overview ?? '',
         genres: [],
         runtime: null,
+        popularity: r.popularity ?? 0,
       }))
+      .sort((a: any, b: any) => b.popularity - a.popularity)
     return jsonResponse(results)
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Internal error'

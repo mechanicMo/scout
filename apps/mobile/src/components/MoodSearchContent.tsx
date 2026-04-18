@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { colors, typography, spacing, radius, shadows } from '../theme'
-import { useMoodSearch, useMoodSearchHistory, useMoodSearchRefresh } from '../hooks/useMoodSearch'
+import { useMoodSearch, useMoodSearchHistory, useMoodSearchRefresh, useMoodSearchUsage, useMoodSearchResults } from '../hooks/useMoodSearch'
 import { useWatchlist, useAddToWatchlist, useUpdateWatchlistStatus } from '../hooks/useWatchlist'
 import { useWatchHistory, useAddToHistory } from '../hooks/useWatchHistory'
 import { useUpdateFromRating } from '../hooks/useTasteProfile'
@@ -87,8 +87,16 @@ export function MoodSearchContent() {
   const [ratingTarget, setRatingTarget] = useState<FeedTarget | null>(null)
   const [searchResults, setSearchResults] = useState<any[]>([])
   const historyQuery = useMoodSearchHistory()
+  const usageQuery = useMoodSearchUsage()
   const searchMutation = useMoodSearch()
   const refreshMutation = useMoodSearchRefresh()
+
+  // Determine results source: fresh mutation result OR cache lookup for history items
+  const isCurrentSearch = selectedSearchId !== null && selectedSearchId === searchMutation.data?.id
+  const selectedHistoryItem = (historyQuery.data ?? []).find((s: any) => s.id === selectedSearchId)
+  const historyResultsQuery = useMoodSearchResults(
+    !isCurrentSearch && selectedHistoryItem ? selectedHistoryItem.resultTmdbIds : []
+  )
   const watchlistQuery = useWatchlist()
   const addMutation = useAddToWatchlist()
   const updateStatusMutation = useUpdateWatchlistStatus()
@@ -115,7 +123,10 @@ export function MoodSearchContent() {
 
   function handleSearch() {
     if (!searchText.trim()) return
-    searchMutation.mutate({ query: searchText.trim() })
+    searchMutation.mutate(
+      { query: searchText.trim() },
+      { onSuccess: (data) => setSelectedSearchId(data.id) },
+    )
   }
 
   function handleAdd(item: any) {
@@ -233,11 +244,9 @@ export function MoodSearchContent() {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            {(() => {
-              const limit = usageQuery.data?.moodSearch?.limit ?? 3
-              const used = usageQuery.data?.moodSearch?.used ?? 0
-              return `${limit - used} of ${limit} searches left today`
-            })()}
+            {usageQuery.data
+              ? `${Math.max(0, usageQuery.data.limit - usageQuery.data.used)} of ${usageQuery.data.limit} mood searches remaining today`
+              : '3 mood searches per day'}
           </Text>
         </View>
       </View>
@@ -245,9 +254,11 @@ export function MoodSearchContent() {
   }
 
   // ── Results view ──────────────────────────────────────────────────────────
-  const currentSearch = (historyQuery.data ?? []).find((s: any) => s.id === selectedSearchId)
-  const searchResults_data = searchMutation.data?.results ?? []
-  const isLoading = searchMutation.isPending || refreshMutation.isPending
+  const currentSearch = selectedHistoryItem
+  const searchResults_data = isCurrentSearch
+    ? (refreshMutation.data?.results ?? searchMutation.data?.results ?? [])
+    : (historyResultsQuery.data ?? [])
+  const isLoading = searchMutation.isPending || refreshMutation.isPending || historyResultsQuery.isLoading
 
   return (
     <View style={{ flex: 1 }}>

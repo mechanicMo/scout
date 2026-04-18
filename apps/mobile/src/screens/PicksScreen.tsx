@@ -156,13 +156,20 @@ export function PicksScreen() {
   const addHistoryMutation = useAddToHistory()
   const tasteProfileMutation = useUpdateFromRating()
 
-  // Use AI recs when available, fall back to trending
-  const baseItems: MediaItem[] = (aiRecsQuery.data?.length ?? 0) > 0
+  // Use AI recs when available, fall back to trending. Deduplicate by tmdbId-mediaType.
+  const rawItems: MediaItem[] = (aiRecsQuery.data?.length ?? 0) > 0
     ? (aiRecsQuery.data ?? [])
     : (trendingQuery.data ?? [])
+  const seenKeys = new Set<string>()
+  const baseItems: MediaItem[] = rawItems.filter(i => {
+    const k = `${i.tmdbId}-${i.mediaType}`
+    if (seenKeys.has(k)) return false
+    seenKeys.add(k)
+    return true
+  })
 
   const watchlistedSet = new Set(
-    watchlistQuery.data?.map(i => `${i.tmdbId}-${i.mediaType}`) ?? []
+    watchlistQuery.data?.filter(i => i.status === 'saved').map(i => `${i.tmdbId}-${i.mediaType}`) ?? []
   )
 
   const filteredItems = baseItems.filter(i => {
@@ -171,13 +178,14 @@ export function PicksScreen() {
   })
 
   // Insert survey card at position 2 (after 2 media items) if available
-  const surveyCard = surveyQuery.data
+  const surveyData = surveyQuery.data && 'id' in surveyQuery.data ? surveyQuery.data : null
+  const surveyCard = surveyData
     ? {
         _type: 'survey' as const,
-        id: surveyQuery.data.id,
-        question: surveyQuery.data.question,
-        options: surveyQuery.data.options,
-        multiSelect: surveyQuery.data.multiSelect,
+        id: surveyData.id,
+        question: surveyData.question,
+        options: surveyData.options,
+        multiSelect: surveyData.multi_select,
       }
     : null
 
@@ -271,7 +279,7 @@ export function PicksScreen() {
       <View style={styles.feedContainer}>
       <FlatList
         data={feedItems}
-        keyExtractor={(item, i) => isSurveyItem(item) ? `survey-${i}` : `${item.tmdbId}-${item.mediaType}`}
+        keyExtractor={(item) => isSurveyItem(item) ? `survey-${item.id}` : `${item.tmdbId}-${item.mediaType}`}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={
