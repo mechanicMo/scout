@@ -73,7 +73,7 @@ export async function rankTitlesByMood(
   mood: string, candidates: Array<{ tmdbId: number; title: string; overview: string }>,
 ): Promise<number[]> {
   const sys = 'You rank titles by how well they match a mood description. Return JSON { "ranked": number[] } — array of tmdbIds in best-to-worst order. Include only titles that match the mood well.'
-  const user = `Mood: ${mood}\nCandidates: ${JSON.stringify(candidates.slice(0, 30))}\nRank and filter to best matches.`
+  const user = `Mood: ${mood}\nCandidates: ${JSON.stringify(candidates.slice(0, 60))}\nRank and filter to best matches.`
   const raw = await complete(user, sys)
   const parsed = JSON.parse(raw)
   return parsed.ranked ?? []
