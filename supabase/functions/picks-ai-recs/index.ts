@@ -20,37 +20,46 @@ const REC_CACHE_TTL_HOURS = 2
 
 export async function handler(req: Request): Promise<Response> {
   try {
-    // Auth check
     const userId = await requireUserId(req)
-
     const supabase = serviceClient()
 
-    // Rate limit check: free users 1/day, paid users unlimited
-    await checkDailyLimit(supabase, userId, 'ai_recs', 1)
+    // Build the full exclusion set (watch history + saved watchlist items)
+    const { historyKeys, savedKeys } = await watchedSetFor(supabase, userId)
+    const allExcludedKeys = new Set([...historyKeys, ...savedKeys])
 
-    // Check cache for fresh recs (2h TTL) with >= 5 items
+    // Serve from cache when enough fresh recs remain after exclusion (cache hits are free)
     const cachedRecs = await getCachedRecs(supabase, userId)
-    if (cachedRecs && cachedRecs.length >= 5) {
-      const watched = await watchedSetFor(supabase, userId)
-      const filtered = cachedRecs.filter((r: any) => !watched.has(makeWatchedKey(r.tmdb_id, r.media_type)))
-      if (filtered.length > 0) {
+    if (cachedRecs.length > 0) {
+      const filtered = cachedRecs.filter((r: any) => !allExcludedKeys.has(makeWatchedKey(r.tmdb_id, r.media_type)))
+      if (filtered.length >= 5) {
         const enriched = await enrichRecs(supabase, filtered.map((r: any) => ({ tmdbId: r.tmdb_id, mediaType: r.media_type })))
-        logUsageNoThrow(supabase, userId)
-        return jsonResponse({ recommendations: enriched })
+        return jsonResponse({ recommendations: enriched, rateLimited: false })
       }
+    }
+
+    // Cache is depleted or thin — need fresh generation. Check rate limit now.
+    try {
+      await checkDailyLimit(supabase, userId, 'ai_recs', 1)
+    } catch {
+      // Rate limited: return whatever cached recs survive exclusion (may be empty)
+      const filtered = cachedRecs.filter((r: any) => !allExcludedKeys.has(makeWatchedKey(r.tmdb_id, r.media_type)))
+      const enriched = filtered.length > 0
+        ? await enrichRecs(supabase, filtered.map((r: any) => ({ tmdbId: r.tmdb_id, mediaType: r.media_type })))
+        : []
+      return jsonResponse({ recommendations: enriched, rateLimited: true })
     }
 
     // Fetch taste profile — new users may not have one yet
     const profile = await getTasteProfile(supabase, userId)
     if (!profile) {
-      return jsonResponse({ recommendations: [] })
+      return jsonResponse({ recommendations: [], rateLimited: false })
     }
 
     // Fetch recent watch history (last 20)
     const history = await getWatchHistory(supabase, userId, 20)
 
-    // Generate recommendations via Groq
-    const newRecs = await generateRecommendations(profile, history)
+    // Generate recommendations via Groq, passing saved items so it avoids them
+    const newRecs = await generateRecommendations(profile, history, savedKeys)
 
     // Delete old pending recs and insert new ones
     await deleteOldPendingRecs(supabase, userId)
@@ -58,19 +67,14 @@ export async function handler(req: Request): Promise<Response> {
       await insertPendingRecs(supabase, userId, newRecs)
     }
 
-    // Log usage
     await logUsage(supabase, userId, 'ai_recs')
 
-    // Enrich and return
     const enriched = await enrichRecs(supabase, newRecs)
-    return jsonResponse({ recommendations: enriched })
+    return jsonResponse({ recommendations: enriched, rateLimited: false })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal server error'
     if (message.includes('Missing Authorization') || message.includes('Invalid Authorization') || message.includes('Unauthorized')) {
       return errorResponse(message, 401)
-    }
-    if (message.includes('Daily ai_recs limit reached')) {
-      return errorResponse(message, 429)
     }
     console.error('picks-ai-recs error:', err)
     return errorResponse(message, 500)
@@ -89,16 +93,16 @@ async function getCachedRecs(supabase: SupabaseClient, userId: string) {
   return data ?? []
 }
 
-async function watchedSetFor(supabase: SupabaseClient, userId: string): Promise<Set<string>> {
-  const { data } = await (supabase as any)
-    .from('watch_history')
-    .select('tmdb_id, media_type')
-    .eq('user_id', userId)
-  const set = new Set<string>()
-  data?.forEach((item: any) => {
-    set.add(makeWatchedKey(item.tmdb_id, item.media_type))
-  })
-  return set
+async function watchedSetFor(supabase: SupabaseClient, userId: string): Promise<{ historyKeys: Set<string>; savedKeys: Set<string> }> {
+  const [{ data: historyData }, { data: savedData }] = await Promise.all([
+    (supabase as any).from('watch_history').select('tmdb_id, media_type').eq('user_id', userId),
+    (supabase as any).from('watchlist').select('tmdb_id, media_type').eq('user_id', userId).eq('status', 'saved'),
+  ])
+  const historyKeys = new Set<string>()
+  historyData?.forEach((item: any) => historyKeys.add(makeWatchedKey(item.tmdb_id, item.media_type)))
+  const savedKeys = new Set<string>()
+  savedData?.forEach((item: any) => savedKeys.add(makeWatchedKey(item.tmdb_id, item.media_type)))
+  return { historyKeys, savedKeys }
 }
 
 function makeWatchedKey(tmdbId: number, mediaType: string): string {
@@ -220,14 +224,6 @@ async function enrichRecs(supabase: SupabaseClient, recs: Recommendation[]): Pro
   }
 
   return enriched
-}
-
-async function logUsageNoThrow(supabase: SupabaseClient, userId: string): Promise<void> {
-  try {
-    await logUsage(supabase, userId, 'ai_recs')
-  } catch (err) {
-    console.error('Failed to log usage:', err)
-  }
 }
 
 Deno.serve(handler)

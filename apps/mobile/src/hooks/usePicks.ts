@@ -26,10 +26,7 @@ export function useTrendingPicks() {
 export function useAiRecommendations() {
   return useQuery({
     queryKey: queryKeys.picks.aiRecs(),
-    queryFn: async () => {
-      const recommendations = await picksAiRecs()
-      return recommendations
-    },
+    queryFn: async () => picksAiRecs(),
     staleTime: 1 * 60 * 60 * 1000, // 1 hour
   })
 }

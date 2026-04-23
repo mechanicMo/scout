@@ -51,10 +51,19 @@ export type SurveyQuestion = {
 }
 
 export async function generateRecommendations(
-  profile: TasteProfile, history: WatchedItem[],
+  profile: TasteProfile,
+  history: WatchedItem[],
+  savedKeys?: Set<string>,
 ): Promise<Recommendation[]> {
+  const exclusionLine = savedKeys && savedKeys.size > 0
+    ? '\nDo NOT recommend any of these already-saved titles (tmdbId mediaType): ' +
+      [...savedKeys].slice(0, 50).map(k => {
+        const dash = k.lastIndexOf('-')
+        return `${k.slice(0, dash)} ${k.slice(dash + 1)}`
+      }).join(', ') + '.'
+    : ''
   const sys = 'You are a media recommendation engine. Return JSON { "recommendations": [{ "tmdbId": number, "mediaType": "movie"|"tv" }] }. Recommend 10-15 titles.'
-  const user = `Taste profile: ${JSON.stringify(profile)}\nRecent watch history: ${JSON.stringify(history.slice(0, 20))}\nRecommend 10-15 titles this user would enjoy. Prioritize what's available on their services: ${profile.services.join(', ') || 'any'}. Return valid TMDB IDs only.`
+  const user = `Taste profile: ${JSON.stringify(profile)}\nRecent watch history: ${JSON.stringify(history.slice(0, 20))}\nRecommend 10-15 titles this user would enjoy. Prioritize what's available on their services: ${profile.services.join(', ') || 'any'}. Return valid TMDB IDs only.${exclusionLine}`
   const raw = await complete(user, sys)
   const parsed = JSON.parse(raw)
   return parsed.recommendations ?? []

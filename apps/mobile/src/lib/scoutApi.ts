@@ -35,6 +35,7 @@ export interface Recommendation {
 
 export interface PicksAiRecsResponse {
   recommendations: Recommendation[]
+  rateLimited?: boolean
 }
 
 export interface SurveyQuestion {
@@ -146,9 +147,9 @@ export async function picksTrending(): Promise<PicksItem[]> {
  * Fetch AI recommendations for the authenticated user.
  * Rate-limited: free users 1/day, paid users unlimited.
  */
-export async function picksAiRecs(): Promise<Recommendation[]> {
+export async function picksAiRecs(): Promise<{ recommendations: Recommendation[]; rateLimited: boolean }> {
   const response = await invokeEdgeFunction<PicksAiRecsResponse>('picks-ai-recs', {})
-  return response.recommendations
+  return { recommendations: response.recommendations, rateLimited: response.rateLimited ?? false }
 }
 
 /**

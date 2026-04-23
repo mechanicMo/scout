@@ -11,7 +11,7 @@ import type { CompositeNavigationProp } from '@react-navigation/native'
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { TabParamList } from '../navigation/TabNavigator'
-import { useAiRecs, useTrending } from '../hooks/usePicks'
+import { useAiRecs } from '../hooks/usePicks'
 import { useWatchlist, useAddToWatchlist, useUpdateWatchlistStatus } from '../hooks/useWatchlist'
 import { useAddToHistory } from '../hooks/useWatchHistory'
 import { useNextSurvey, useSubmitSurvey, useSkipSurvey } from '../hooks/useSurvey'
@@ -144,9 +144,6 @@ export function PicksScreen() {
   const REFRESH_COOLDOWN_MS = 60_000
 
   const aiRecsQuery = useAiRecs()
-  const trendingQuery = useTrending(
-    aiRecsQuery.isFetched && (aiRecsQuery.data?.length === 0 || aiRecsQuery.isError)
-  )
   const surveyQuery = useNextSurvey()
   const submitSurveyMutation = useSubmitSurvey()
   const skipSurveyMutation = useSkipSurvey()
@@ -156,10 +153,8 @@ export function PicksScreen() {
   const addHistoryMutation = useAddToHistory()
   const tasteProfileMutation = useUpdateFromRating()
 
-  // Use AI recs when available, fall back to trending. Deduplicate by tmdbId-mediaType.
-  const rawItems: MediaItem[] = (aiRecsQuery.data?.length ?? 0) > 0
-    ? (aiRecsQuery.data ?? [])
-    : (trendingQuery.data ?? [])
+  const isRateLimited = aiRecsQuery.data?.rateLimited ?? false
+  const rawItems: MediaItem[] = aiRecsQuery.data?.recommendations ?? []
   const seenKeys = new Set<string>()
   const baseItems: MediaItem[] = rawItems.filter(i => {
     const k = `${i.tmdbId}-${i.mediaType}`
@@ -193,9 +188,8 @@ export function PicksScreen() {
     ? [...filteredItems.slice(0, 2), surveyCard, ...filteredItems.slice(2)]
     : filteredItems
 
-  const isLoading = aiRecsQuery.isLoading ||
-    (aiRecsQuery.isFetched && (aiRecsQuery.data?.length === 0 || aiRecsQuery.isError) && trendingQuery.isLoading)
-  const isSparseFallback = aiRecsQuery.isFetched && (aiRecsQuery.data?.length ?? 0) === 0 && (trendingQuery.data?.length ?? 0) > 0
+  const isLoading = aiRecsQuery.isLoading
+  const isSparseFallback = !isRateLimited && aiRecsQuery.isFetched && rawItems.length === 0
 
   async function handleRefresh() {
     const now = Date.now()
@@ -203,10 +197,7 @@ export function PicksScreen() {
     lastRefreshAt.current = now
     setRefreshing(true)
     try {
-      await Promise.allSettled([
-        aiRecsQuery.refetch(),
-        watchlistQuery.refetch(),
-      ])
+      await Promise.allSettled([aiRecsQuery.refetch(), watchlistQuery.refetch()])
     } finally {
       setRefreshing(false)
     }
@@ -264,8 +255,7 @@ export function PicksScreen() {
 
   if (isLoading) return <View style={styles.centered}><ActivityIndicator color="#e8a020" size="large" /></View>
 
-  const hasError = aiRecsQuery.isError && trendingQuery.isError
-  if (hasError) return <View style={styles.centered}><Text style={styles.errorText}>Could not load picks.</Text></View>
+  if (aiRecsQuery.isError) return <View style={styles.centered}><Text style={styles.errorText}>Could not load picks.</Text></View>
 
   return (
     <KeyboardAvoidingView
@@ -290,12 +280,19 @@ export function PicksScreen() {
             colors={['#e8a020']}
           />
         }
-        ListHeaderComponent={isSparseFallback ? (
-          <View style={styles.onboardingBanner}>
-            <Text style={styles.onboardingTitle}>Scout is getting to know you</Text>
-            <Text style={styles.onboardingBody}>Rate a few titles to unlock personalized picks. The more you rate, the better Scout gets.</Text>
-          </View>
-        ) : null}
+        ListHeaderComponent={
+          isRateLimited ? (
+            <View style={styles.onboardingBanner}>
+              <Text style={styles.onboardingTitle}>Out of AI picks for today</Text>
+              <Text style={styles.onboardingBody}>Scout refreshes your personalized picks daily. Try again in a few hours.</Text>
+            </View>
+          ) : isSparseFallback ? (
+            <View style={styles.onboardingBanner}>
+              <Text style={styles.onboardingTitle}>Scout is getting to know you</Text>
+              <Text style={styles.onboardingBody}>Rate a few titles to unlock personalized picks. The more you rate, the better Scout gets.</Text>
+            </View>
+          ) : null
+        }
         renderItem={({ item }) => {
           if (isSurveyItem(item)) {
             return (
