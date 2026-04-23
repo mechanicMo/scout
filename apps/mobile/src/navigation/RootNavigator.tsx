@@ -3,7 +3,7 @@ import { NavigationContainer, DarkTheme } from '@react-navigation/native'
 import { QueryClient, MutationCache, QueryCache } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Alert } from 'react-native'
+import { Alert, View, Image, Text, StyleSheet } from 'react-native'
 import { MainNavigator } from './MainNavigator'
 import { LoginScreen } from '../screens/LoginScreen'
 import { SignUpScreen } from '../screens/SignUpScreen'
@@ -65,9 +65,42 @@ const asyncStoragePersister = {
   },
 }
 
+function SplashScreen() {
+  return (
+    <View style={splashStyles.container}>
+      <Image
+        source={require('../../assets/splash-icon.png')}
+        style={splashStyles.icon}
+        resizeMode="contain"
+      />
+      <Text style={splashStyles.wordmark}>SCOUT</Text>
+    </View>
+  )
+}
+
+const splashStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  icon: {
+    width: 80,
+    height: 80,
+  },
+  wordmark: {
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 28,
+    letterSpacing: 6,
+    color: colors.gold,
+  },
+})
+
 // Inner component — can use React Query hooks
 function AppContent() {
-  const { session, setSession } = useAuthStore()
+  const { session, loading, setSession } = useAuthStore()
   const [authScreen, setAuthScreen] = useState<'login' | 'signup'>('login')
 
   useEffect(() => {
@@ -83,6 +116,8 @@ function AppContent() {
 
     return () => subscription.unsubscribe()
   }, [])
+
+  if (loading) return <SplashScreen />
 
   return (
     <NavigationContainer theme={scoutNavTheme}>
