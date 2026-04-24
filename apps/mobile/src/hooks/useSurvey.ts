@@ -54,6 +54,13 @@ export function useSurveyQuestion() {
 
       if (toInsert.length > 0) {
         await supabase.from('survey_question_state').insert(toInsert)
+      } else if ((existing?.length ?? 0) >= SEEDS.length) {
+        // All seeds consumed — cycle back to the beginning
+        await supabase
+          .from('survey_question_state')
+          .update({ consumed_at: null, skip_count: 0 })
+          .eq('user_id', user.id)
+          .eq('source', 'seed')
       }
 
       const { data: seeded } = await supabase
