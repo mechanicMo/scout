@@ -69,6 +69,7 @@ export interface MediaDetails {
   statusText: string | null
   network: string | null
   watchProviders: Record<string, { provider: string; region: string }>
+  seasons: Array<{ season_number: number; episode_count: number }> | null
   cached: boolean
   cachedAt: string | null
 }

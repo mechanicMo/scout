@@ -6,11 +6,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { colors, typography, spacing, radius, shadows } from '../theme'
 
+type SeasonData = { season_number: number; episode_count: number }
+
 type Props = {
   visible: boolean
   mediaType: 'movie' | 'tv'
   title: string
   totalSeasons?: number | null
+  seasons?: SeasonData[] | null
   initialSeason?: number | null
   initialEpisode?: number | null
   onClose: () => void
@@ -19,11 +22,34 @@ type Props = {
 }
 
 export function WatchingStatusModal({
-  visible, mediaType, title, totalSeasons, initialSeason, initialEpisode, onClose, onSubmit, isPending,
+  visible, mediaType, title, totalSeasons, seasons, initialSeason, initialEpisode, onClose, onSubmit, isPending,
 }: Props) {
   const isEditing = initialSeason != null || initialEpisode != null
   const [season, setSeason] = useState('')
   const [episode, setEpisode] = useState('')
+
+  const seasonNum = season ? parseInt(season, 10) : NaN
+  const maxSeason = totalSeasons ?? null
+  const seasonError = !isNaN(seasonNum)
+    ? seasonNum < 1
+      ? 'Min season is 1'
+      : maxSeason != null && seasonNum > maxSeason
+        ? `Max season is ${maxSeason}`
+        : null
+    : null
+
+  const episodeNum = episode ? parseInt(episode, 10) : NaN
+  const seasonEntry = !isNaN(seasonNum) && seasons
+    ? seasons.find(s => s.season_number === seasonNum) ?? null
+    : null
+  const maxEpisode = seasonEntry?.episode_count ?? null
+  const episodeError = !isNaN(episodeNum)
+    ? episodeNum < 1
+      ? 'Min episode is 1'
+      : maxEpisode != null && episodeNum > maxEpisode
+        ? `Max episode for S${seasonNum} is ${maxEpisode}`
+        : null
+    : null
 
   // Sync initial values when modal opens
   React.useEffect(() => {
@@ -34,8 +60,13 @@ export function WatchingStatusModal({
   }, [visible, initialSeason, initialEpisode])
 
   function handleSubmit() {
-    const s = season ? parseInt(season, 10) : 1
-    const e = episode ? parseInt(episode, 10) : 1
+    let s = season ? parseInt(season, 10) : 1
+    let e = episode ? parseInt(episode, 10) : 1
+    if (isNaN(s) || s < 1) s = 1
+    if (maxSeason != null && s > maxSeason) s = maxSeason
+    if (isNaN(e) || e < 1) e = 1
+    const entry = seasons?.find(x => x.season_number === s) ?? null
+    if (entry && e > entry.episode_count) e = entry.episode_count
     onSubmit('watching', s, e)
   }
 
@@ -58,9 +89,11 @@ export function WatchingStatusModal({
 
           <View style={styles.seasonEpisodeContainer}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Season</Text>
+              <Text style={styles.label}>
+                Season{totalSeasons != null ? ` (1–${totalSeasons})` : ''}
+              </Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, seasonError ? styles.inputError : null]}
                 value={season}
                 onChangeText={setSeason}
                 keyboardType="number-pad"
@@ -68,11 +101,14 @@ export function WatchingStatusModal({
                 placeholderTextColor={colors.textMuted}
                 editable={!isPending}
               />
+              {seasonError ? <Text style={styles.errorText}>{seasonError}</Text> : null}
             </View>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Episode</Text>
+              <Text style={styles.label}>
+                Episode{maxEpisode != null ? ` (1–${maxEpisode})` : ''}
+              </Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, episodeError ? styles.inputError : null]}
                 value={episode}
                 onChangeText={setEpisode}
                 keyboardType="number-pad"
@@ -80,6 +116,7 @@ export function WatchingStatusModal({
                 placeholderTextColor={colors.textMuted}
                 editable={!isPending}
               />
+              {episodeError ? <Text style={styles.errorText}>{episodeError}</Text> : null}
             </View>
           </View>
 
@@ -168,6 +205,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     color: colors.text,
     fontSize: 14,
+  },
+  inputError: {
+    borderColor: colors.error,
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: 11,
+    marginTop: 4,
   },
   buttons: {
     flexDirection: 'row',

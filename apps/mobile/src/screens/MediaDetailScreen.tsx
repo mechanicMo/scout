@@ -299,6 +299,7 @@ export function MediaDetailScreen({ route, navigation }: Props) {
                   isWatched && styles.primaryButtonWatched,
                 ]}
                 onPress={() => {
+                  if (showOverflow) { setShowStatusSheet(true); return }
                   if (isWatched) { handleRemoveWatched(); return }
                   if (isInProgress) { handleEditProgress(); return }
                   handleWatchlistToggle()
@@ -410,6 +411,7 @@ export function MediaDetailScreen({ route, navigation }: Props) {
         mediaType={mediaType}
         title={mediaQuery.data?.title ?? ''}
         totalSeasons={mediaQuery.data?.numberOfSeasons ?? null}
+        seasons={mediaQuery.data?.seasons ?? null}
         initialSeason={watchlistEntry?.currentSeason ?? null}
         initialEpisode={watchlistEntry?.currentEpisode ?? null}
         onClose={() => setShowWatchingModal(false)}

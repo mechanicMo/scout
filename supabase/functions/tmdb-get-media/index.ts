@@ -26,6 +26,7 @@ export interface MediaCacheRow {
   status_text: string | null
   network: string | null
   watch_providers: Record<string, { provider: string; region: string }>
+  seasons_data: Array<{ season_number: number; episode_count: number }> | null
   last_synced: string
   watch_providers_synced: string | null
 }
@@ -51,6 +52,7 @@ export interface MediaResponse {
   statusText: string | null
   network: string | null
   watchProviders: Record<string, { provider: string; region: string }>
+  seasons: Array<{ season_number: number; episode_count: number }> | null
   cached: boolean
   cachedAt: string | null
 }
@@ -137,6 +139,11 @@ function normalize(
     statusText: details.status ?? null,
     network: details.networks?.[0]?.name ?? null,
     watchProviders,
+    seasons: mediaType === 'tv'
+      ? (details.seasons ?? [])
+          .filter((s: any) => s.season_number > 0)
+          .map((s: any) => ({ season_number: s.season_number, episode_count: s.episode_count }))
+      : null,
   }
 }
 
@@ -165,6 +172,7 @@ function mediaCacheToResponse(row: MediaCacheRow): MediaResponse {
     statusText: row.status_text,
     network: row.network,
     watchProviders: row.watch_providers,
+    seasons: row.seasons_data ?? null,
     cached: true,
     cachedAt: row.last_synced,
   }
@@ -261,6 +269,7 @@ export async function handler(req: Request): Promise<Response> {
         status_text: normalized.statusText,
         network: normalized.network,
         watch_providers: normalized.watchProviders,
+        seasons_data: normalized.seasons ?? null,
         last_synced: now,
         watch_providers_synced: normalized.watchProviders && Object.keys(normalized.watchProviders).length > 0 ? now : null,
       },
