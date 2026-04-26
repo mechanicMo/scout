@@ -217,3 +217,52 @@ export function useAddToHistory() {
     },
   })
 }
+
+/**
+ * Mutation to update score and tags on an existing watch history entry.
+ * Used when the user edits their rating after already marking something as watched.
+ */
+export function useUpdateHistoryRating() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      tmdbId,
+      mediaType,
+      score,
+      tags = [],
+    }: {
+      tmdbId: number
+      mediaType: MediaType
+      score: number | null
+      tags?: string[]
+    }) => {
+      const { error } = await supabase
+        .from('watch_history')
+        .update({ overall_score: score, tags })
+        .eq('tmdb_id', tmdbId)
+        .eq('media_type', mediaType)
+
+      if (error) throw new Error(`Failed to update rating: ${error.message}`)
+    },
+    onMutate: async ({ tmdbId, mediaType, score, tags = [] }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.watchHistory.list() })
+      const previousData = queryClient.getQueryData(queryKeys.watchHistory.list())
+      queryClient.setQueryData(queryKeys.watchHistory.list(), (old: WatchHistoryItem[] | undefined) =>
+        old?.map(item =>
+          item.tmdbId === tmdbId && item.mediaType === mediaType
+            ? { ...item, overallScore: score, tags }
+            : item
+        ) ?? []
+      )
+      return { previousData }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(queryKeys.watchHistory.list(), context.previousData)
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.watchHistory.list() })
+    },
+  })
+}

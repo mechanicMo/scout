@@ -11,7 +11,7 @@ import {
   useWatchlist, useAddToWatchlist, useRemoveFromWatchlist, useUpdateWatchingStatus,
 } from '../hooks/useWatchlist'
 import {
-  useWatchHistory, useAddToHistory, useRemoveFromHistory,
+  useWatchHistory, useAddToHistory, useRemoveFromHistory, useUpdateHistoryRating,
 } from '../hooks/useWatchHistory'
 import { useMediaDetail, useGenerateTags } from '../hooks/useMediaDetail'
 import { useUpdateFromRating } from '../hooks/useTasteProfile'
@@ -59,6 +59,7 @@ export function MediaDetailScreen({ route, navigation }: Props) {
   const updateWatchingMutation = useUpdateWatchingStatus()
   const addHistoryMutation = useAddToHistory()
   const removeHistoryMutation = useRemoveFromHistory()
+  const updateRatingMutation = useUpdateHistoryRating()
   const tasteProfileMutation = useUpdateFromRating()
 
   const watchlistItem = watchlistQuery.data?.find(
@@ -67,9 +68,10 @@ export function MediaDetailScreen({ route, navigation }: Props) {
   )
   const inWatchlist = !!watchlistItem
 
-  const isWatched = historyQuery.data?.some(
-    (h: { tmdbId: number; mediaType: string }) => h.tmdbId === tmdbId && h.mediaType === mediaType
-  ) ?? false
+  const watchedEntry = historyQuery.data?.find(
+    h => h.tmdbId === tmdbId && h.mediaType === mediaType
+  ) ?? null
+  const isWatched = !!watchedEntry
 
   const watchlistEntry = watchlistQuery.data?.find(
     (w: any) => w.tmdbId === tmdbId && w.mediaType === mediaType
@@ -133,17 +135,17 @@ export function MediaDetailScreen({ route, navigation }: Props) {
 
   function handleRatingSubmit(score: number, tags: string[]) {
     if (!mediaQuery.data) return
-    addHistoryMutation.mutate(
-      { item: mediaQuery.data, score, tags },
-      {
-        onSuccess: () => {
-          if (mediaQuery.data!.genres.length > 0) {
-            tasteProfileMutation.mutate({ score, genres: mediaQuery.data!.genres })
-          }
-          setShowRatingModal(false)
-        },
-      },
-    )
+    const onSuccess = () => {
+      if (mediaQuery.data!.genres.length > 0) {
+        tasteProfileMutation.mutate({ score, genres: mediaQuery.data!.genres })
+      }
+      setShowRatingModal(false)
+    }
+    if (isWatched) {
+      updateRatingMutation.mutate({ tmdbId, mediaType, score, tags }, { onSuccess })
+    } else {
+      addHistoryMutation.mutate({ item: mediaQuery.data, score, tags }, { onSuccess })
+    }
   }
 
   const isTogglingWatchlist = addMutation.isPending || removeMutation.isPending
@@ -151,6 +153,16 @@ export function MediaDetailScreen({ route, navigation }: Props) {
   const statusActions: StatusAction[] = useMemo(() => {
     if (!watchlistItem && !isInProgress && !isWatched) return []
     const acts: StatusAction[] = []
+
+    if (mediaType === 'tv' && isInProgress) {
+      acts.push({
+        key: 'edit-progress',
+        icon: '✎',
+        label: 'Edit Progress',
+        meta: `S${watchlistEntry?.currentSeason ?? 1} · E${watchlistEntry?.currentEpisode ?? 1}`,
+        onPress: () => { setShowStatusSheet(false); handleEditProgress() },
+      })
+    }
     if (mediaType === 'tv' && !isInProgress && !isWatched) {
       acts.push({
         key: 'watching',
@@ -158,6 +170,18 @@ export function MediaDetailScreen({ route, navigation }: Props) {
         label: 'Now Watching',
         meta: 'Start tracking from S1 · E1',
         onPress: () => { setShowStatusSheet(false); handleStartWatching() },
+      })
+    }
+    if (isWatched) {
+      const score = watchedEntry?.overallScore
+      acts.push({
+        key: 'edit-rating',
+        icon: '★',
+        label: score != null ? 'Edit Rating' : 'Rate This',
+        meta: score != null
+          ? '★'.repeat(score) + '☆'.repeat(5 - score)
+          : 'You haven\'t rated this yet',
+        onPress: () => { setShowStatusSheet(false); setShowRatingModal(true) },
       })
     }
     if (!isWatched) {
@@ -183,7 +207,7 @@ export function MediaDetailScreen({ route, navigation }: Props) {
       },
     })
     return acts
-  }, [watchlistItem, isInProgress, isWatched, mediaType, watchlistEntry])
+  }, [watchlistItem, isInProgress, isWatched, mediaType, watchlistEntry, watchedEntry])
 
   const showOverflow = (watchlistItem || isInProgress || isWatched) && statusActions.length > 0
 
@@ -312,10 +336,12 @@ export function MediaDetailScreen({ route, navigation }: Props) {
                   <ActivityIndicator size="small" color={colors.bg} />
                 ) : isWatched ? (
                   <>
-                    <Text style={styles.primaryButtonTextWatched}>
-                      {removeHistoryMutation.isPending ? 'Removing...' : '✓ Watched'}
+                    <Text style={styles.primaryButtonTextWatched}>✓ Watched</Text>
+                    <Text style={styles.primaryButtonHint}>
+                      {watchedEntry?.overallScore != null
+                        ? '★'.repeat(watchedEntry.overallScore) + '☆'.repeat(5 - watchedEntry.overallScore)
+                        : 'Not rated'}
                     </Text>
-                    <Text style={styles.primaryButtonHint}>Tap to undo</Text>
                   </>
                 ) : isInProgress ? (
                   <>
@@ -427,7 +453,7 @@ export function MediaDetailScreen({ route, navigation }: Props) {
         tags={tagsQuery.data ?? mediaQuery.data?.genres ?? []}
         onClose={() => setShowRatingModal(false)}
         onSubmit={handleRatingSubmit}
-        isPending={addHistoryMutation.isPending}
+        isPending={addHistoryMutation.isPending || updateRatingMutation.isPending}
       />
 
       <StatusSheet
