@@ -33,6 +33,8 @@ type Provider = { providerName: string; logoPath: string }
 
 function getStreamingProviders(watchProviders: Record<string, any>): Provider[] {
   const region = watchProviders['US'] ?? watchProviders[Object.keys(watchProviders)[0]] ?? {}
+  // Old cached format has `provider` string field — return empty until cache refreshes
+  if (typeof region.provider === 'string') return []
   return region.flatrate ?? region.rent ?? []
 }
 

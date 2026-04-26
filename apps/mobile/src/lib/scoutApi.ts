@@ -62,13 +62,17 @@ export interface MediaDetails {
   voteAverage: number | null
   director: string | null
   createdBy: string[]
-  cast: Array<{ name: string; character: string }>
+  cast: Array<{ name: string; character: string; profilePath: string | null }>
   contentRating: string | null
   numberOfSeasons: number | null
   numberOfEpisodes: number | null
   statusText: string | null
   network: string | null
-  watchProviders: Record<string, { provider: string; region: string }>
+  watchProviders: Record<string, {
+    flatrate?: Array<{ providerId: number; providerName: string; logoPath: string }>
+    rent?: Array<{ providerId: number; providerName: string; logoPath: string }>
+    buy?: Array<{ providerId: number; providerName: string; logoPath: string }>
+  }>
   seasons: Array<{ season_number: number; episode_count: number }> | null
   cached: boolean
   cachedAt: string | null

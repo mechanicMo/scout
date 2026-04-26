@@ -12,7 +12,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { useSearchTitles } from '../hooks/useMediaDetail'
 import { useWatchlist, useAddToWatchlist } from '../hooks/useWatchlist'
-import type { MediaItem } from '@scout/shared'
+import type { PicksItem } from '../lib/scoutApi'
 import type { RootStackParamList } from '../navigation/MainNavigator'
 import type { TabParamList } from '../navigation/TabNavigator'
 import { colors, typography, spacing, radius, shadows } from '../theme'
@@ -50,7 +50,7 @@ export function SearchScreen({ route, navigation }: Props) {
       .map((item: any) => `${item.tmdbId}-${item.mediaType}`) ?? []
   ), [watchlistQuery.data])
 
-  function handleAdd(item: MediaItem) {
+  function handleAdd(item: PicksItem) {
     addMutation.mutate(item)
   }
 

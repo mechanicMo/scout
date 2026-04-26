@@ -19,13 +19,17 @@ export interface MediaCacheRow {
   vote_average: number | null
   director: string | null
   created_by: string[]
-  cast: Array<{ name: string; character: string }>
+  cast: Array<{ name: string; character: string; profilePath: string | null }>
   content_rating: string | null
   number_of_seasons: number | null
   number_of_episodes: number | null
   status_text: string | null
   network: string | null
-  watch_providers: Record<string, { provider: string; region: string }>
+  watch_providers: Record<string, {
+    flatrate?: Array<{ providerId: number; providerName: string; logoPath: string }>
+    rent?: Array<{ providerId: number; providerName: string; logoPath: string }>
+    buy?: Array<{ providerId: number; providerName: string; logoPath: string }>
+  }>
   seasons_data: Array<{ season_number: number; episode_count: number }> | null
   last_synced: string
   watch_providers_synced: string | null
@@ -45,13 +49,17 @@ export interface MediaResponse {
   voteAverage: number | null
   director: string | null
   createdBy: string[]
-  cast: Array<{ name: string; character: string }>
+  cast: Array<{ name: string; character: string; profilePath: string | null }>
   contentRating: string | null
   numberOfSeasons: number | null
   numberOfEpisodes: number | null
   statusText: string | null
   network: string | null
-  watchProviders: Record<string, { provider: string; region: string }>
+  watchProviders: Record<string, {
+    flatrate?: Array<{ providerId: number; providerName: string; logoPath: string }>
+    rent?: Array<{ providerId: number; providerName: string; logoPath: string }>
+    buy?: Array<{ providerId: number; providerName: string; logoPath: string }>
+  }>
   seasons: Array<{ season_number: number; episode_count: number }> | null
   cached: boolean
   cachedAt: string | null
@@ -71,6 +79,7 @@ function normalize(
     .map((member: any) => ({
       name: member.name,
       character: member.character,
+      profilePath: member.profile_path ?? null,
     }))
 
   // Extract director (for movies) or creators (for TV)
@@ -103,15 +112,19 @@ function normalize(
 
   // Extract watch providers
   const providers = details['watch/providers']?.results ?? {}
-  const watchProviders: Record<string, { provider: string; region: string }> = {}
+  const watchProviders: MediaResponse['watchProviders'] = {}
   for (const [region, data] of Object.entries(providers)) {
-    const providerList = (data as any)?.flatrate ?? (data as any)?.rent ?? (data as any)?.buy ?? []
-    if (providerList.length > 0) {
-      watchProviders[region] = {
-        provider: providerList[0].provider_name,
-        region,
-      }
-    }
+    const d = data as any
+    const mapProvider = (p: any) => ({
+      providerId: p.provider_id,
+      providerName: p.provider_name,
+      logoPath: p.logo_path,
+    })
+    const regionEntry: MediaResponse['watchProviders'][string] = {}
+    if (d?.flatrate?.length) regionEntry.flatrate = d.flatrate.map(mapProvider)
+    if (d?.rent?.length) regionEntry.rent = d.rent.map(mapProvider)
+    if (d?.buy?.length) regionEntry.buy = d.buy.map(mapProvider)
+    if (Object.keys(regionEntry).length > 0) watchProviders[region] = regionEntry
   }
 
   const isMovie = mediaType === 'movie'

@@ -11,6 +11,11 @@ export interface WatchHistoryItem {
   watchedAt: string
   overallScore: number | null
   tags: string[]
+  // From media_cache
+  title: string
+  posterPath: string | null
+  year: number | null
+  genres: string[]
 }
 
 /**
@@ -27,15 +32,35 @@ export function useWatchHistory() {
         .order('watched_at', { ascending: false })
 
       if (error) throw new Error(`Failed to fetch watch history: ${error.message}`)
-      return (data ?? []).map((row: any) => ({
-        id: row.id,
-        userId: row.user_id,
-        tmdbId: row.tmdb_id,
-        mediaType: row.media_type,
-        watchedAt: row.watched_at,
-        overallScore: row.overall_score,
-        tags: row.tags ?? [],
-      })) as WatchHistoryItem[]
+      if (!data || data.length === 0) return []
+
+      // Batch-fetch media details from cache for titles, posters, etc.
+      const tmdbIds = data.map((row: any) => row.tmdb_id)
+      const { data: cacheData } = await supabase
+        .from('media_cache')
+        .select('tmdb_id, media_type, title, poster_path, year, genres')
+        .in('tmdb_id', tmdbIds)
+
+      const cacheMap = new Map(
+        (cacheData ?? []).map((c: any) => [`${c.tmdb_id}-${c.media_type}`, c])
+      )
+
+      return data.map((row: any): WatchHistoryItem => {
+        const cache = cacheMap.get(`${row.tmdb_id}-${row.media_type}`)
+        return {
+          id: row.id,
+          userId: row.user_id,
+          tmdbId: row.tmdb_id,
+          mediaType: row.media_type,
+          watchedAt: row.watched_at,
+          overallScore: row.overall_score,
+          tags: row.tags ?? [],
+          title: cache?.title ?? 'Unknown',
+          posterPath: cache?.poster_path ?? null,
+          year: cache?.year ?? null,
+          genres: cache?.genres ?? [],
+        }
+      })
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
@@ -96,6 +121,10 @@ export function useMarkWatched() {
         watchedAt: new Date().toISOString(),
         overallScore: variables.score || null,
         tags: variables.tags || [],
+        title: '',
+        posterPath: null,
+        year: null,
+        genres: [],
       }
 
       queryClient.setQueryData(queryKeys.watchHistory.list(), (old: WatchHistoryItem[] | undefined) => {
@@ -122,8 +151,12 @@ export function useRemoveFromHistory() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id }: { id: string }) => {
-      const { error } = await supabase.from('watch_history').delete().eq('id', id)
+    mutationFn: async ({ tmdbId, mediaType }: { tmdbId: number; mediaType: MediaType }) => {
+      const { error } = await supabase
+        .from('watch_history')
+        .delete()
+        .eq('tmdb_id', tmdbId)
+        .eq('media_type', mediaType)
 
       if (error) throw new Error(`Failed to remove from history: ${error.message}`)
     },
@@ -133,7 +166,9 @@ export function useRemoveFromHistory() {
       const previousData = queryClient.getQueryData(queryKeys.watchHistory.list())
 
       queryClient.setQueryData(queryKeys.watchHistory.list(), (old: WatchHistoryItem[] | undefined) => {
-        return old ? old.filter((item) => item.id !== variables.id) : []
+        return old
+          ? old.filter(item => !(item.tmdbId === variables.tmdbId && item.mediaType === variables.mediaType))
+          : []
       })
 
       return { previousData }

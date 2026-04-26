@@ -13,14 +13,14 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { TabParamList } from '../navigation/TabNavigator'
 import { useAiRecs } from '../hooks/usePicks'
 import { useWatchlist, useAddToWatchlist, useUpdateWatchlistStatus } from '../hooks/useWatchlist'
-import { useAddToHistory } from '../hooks/useWatchHistory'
+import { useWatchHistory, useAddToHistory } from '../hooks/useWatchHistory'
 import { useNextSurvey, useSubmitSurvey, useSkipSurvey } from '../hooks/useSurvey'
 import { useUpdateFromRating } from '../hooks/useTasteProfile'
 import { DismissSheet } from '../components/DismissSheet'
 import { RatingModal } from '../components/RatingModal'
 import { SurveyCard } from '../components/SurveyCard'
 import type { RootStackParamList } from '../navigation/MainNavigator'
-import type { MediaItem } from '@scout/shared'
+import type { Recommendation } from '../lib/scoutApi'
 import { colors, typography, spacing, radius, shadows } from '../theme'
 
 type Nav = CompositeNavigationProp<
@@ -128,7 +128,7 @@ type FeedTarget = {
 }
 
 type SurveyItem = { _type: 'survey'; id: string; question: string; options: string[]; multiSelect?: boolean }
-type FeedItem = MediaItem | SurveyItem
+type FeedItem = Recommendation | SurveyItem
 
 function isSurveyItem(item: FeedItem): item is SurveyItem {
   return '_type' in item && item._type === 'survey'
@@ -153,10 +153,11 @@ export function PicksScreen() {
   const addHistoryMutation = useAddToHistory()
   const tasteProfileMutation = useUpdateFromRating()
 
+  const historyQuery = useWatchHistory()
   const isRateLimited = aiRecsQuery.data?.rateLimited ?? false
-  const rawItems: MediaItem[] = aiRecsQuery.data?.recommendations ?? []
+  const rawItems = aiRecsQuery.data?.recommendations ?? []
   const seenKeys = new Set<string>()
-  const baseItems: MediaItem[] = rawItems.filter(i => {
+  const baseItems = rawItems.filter(i => {
     const k = `${i.tmdbId}-${i.mediaType}`
     if (seenKeys.has(k)) return false
     seenKeys.add(k)
@@ -166,10 +167,13 @@ export function PicksScreen() {
   const watchlistedSet = new Set(
     watchlistQuery.data?.filter(i => i.status === 'saved').map(i => `${i.tmdbId}-${i.mediaType}`) ?? []
   )
+  const watchedSet = new Set(
+    historyQuery.data?.map(h => `${h.tmdbId}-${h.mediaType}`) ?? []
+  )
 
   const filteredItems = baseItems.filter(i => {
     const key = `${i.tmdbId}-${i.mediaType}`
-    return !dismissedIds.has(key) && !watchlistedSet.has(key)
+    return !dismissedIds.has(key) && !watchlistedSet.has(key) && !watchedSet.has(key)
   })
 
   // Insert survey card at position 2 (after 2 media items) if available
@@ -210,7 +214,7 @@ export function PicksScreen() {
     }
   }
 
-  function handleAdd(item: MediaItem) {
+  function handleAdd(item: Recommendation) {
     addMutation.mutate(item)
   }
 

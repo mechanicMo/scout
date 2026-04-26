@@ -21,6 +21,8 @@ export interface WatchlistItem {
   posterPath: string | null
   backdropPath: string | null
   overview: string
+  numberOfSeasons: number | null
+  numberOfEpisodes: number | null
 }
 
 /**
@@ -44,7 +46,7 @@ export function useWatchlist(status?: string) {
       const tmdbIds = data.map((item: any) => item.tmdb_id)
       const { data: cacheData } = await supabase
         .from('media_cache')
-        .select('tmdb_id, media_type, title, genres, year, poster_path, backdrop_path, overview')
+        .select('tmdb_id, media_type, title, genres, year, poster_path, backdrop_path, overview, number_of_seasons, number_of_episodes')
         .in('tmdb_id', tmdbIds)
 
       const cacheMap = new Map(
@@ -70,6 +72,8 @@ export function useWatchlist(status?: string) {
           posterPath: cache?.poster_path ?? null,
           backdropPath: cache?.backdrop_path ?? null,
           overview: cache?.overview ?? '',
+          numberOfSeasons: cache?.number_of_seasons ?? null,
+          numberOfEpisodes: cache?.number_of_episodes ?? null,
         }
       })
     },
@@ -93,6 +97,15 @@ export function useAddToWatchlist() {
       tmdbId: number
       mediaType: MediaType
       watchingStatus?: 'not_started' | 'watching' | 'completed' | 'dropped'
+      // Optional media fields — passed by callers for optimistic UI, not stored here
+      title?: string
+      genres?: string[]
+      year?: number | null
+      posterPath?: string | null
+      backdropPath?: string | null
+      overview?: string
+      runtime?: number | null
+      [key: string]: any
     }) => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
@@ -134,6 +147,14 @@ export function useAddToWatchlist() {
         currentEpisode: null,
         addedAt: new Date().toISOString(),
         resurfaceAfter: null,
+        title: variables.title ?? '',
+        genres: variables.genres ?? [],
+        year: variables.year ?? null,
+        posterPath: variables.posterPath ?? null,
+        backdropPath: variables.backdropPath ?? null,
+        overview: variables.overview ?? '',
+        numberOfSeasons: null,
+        numberOfEpisodes: null,
       }
 
       queryClient.setQueryData(queryKeys.watchlist.all(), (old: WatchlistItem[] | undefined) => {

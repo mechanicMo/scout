@@ -77,7 +77,7 @@ export function WatchlistScreen() {
   }, [listQuery.data])
 
   const filteredAndSorted = useMemo(() => {
-    let items = [...(listQuery.data ?? [])]
+    let items = [...(listQuery.data ?? [])].filter(i => i.watchingStatus !== 'watching')
     if (filterType !== 'all') items = items.filter(i => i.mediaType === filterType)
     if (filterGenres.length > 0) items = items.filter(i => i.genres?.some((g: string) => filterGenres.includes(g)))
     switch (sortBy) {
@@ -143,7 +143,7 @@ export function WatchlistScreen() {
 
   function handleNextEpisode(item: {
     id: string; currentSeason: number | null; currentEpisode: number | null;
-    numberOfEpisodes: number | null; numberOfSeasons: number | null
+    numberOfEpisodes: number | null; numberOfSeasons: number | null; mediaType?: string
   }) {
     const season = item.currentSeason ?? 1
     const episode = item.currentEpisode ?? 1
